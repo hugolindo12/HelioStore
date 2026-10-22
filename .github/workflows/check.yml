@@ -18,3 +18,15 @@ jobs:
           for f in main.js preload.js github.js translate.js src/app.js src/i18n.js; do node --check "$f"; done
           node -e "JSON.parse(require('fs').readFileSync('catalog/apps.json','utf8')); JSON.parse(require('fs').readFileSync('package.json','utf8'))"
       - run: node scripts/i18n-check.js
+
+  # Abre a interface num Chromium (com a API do Electron simulada) e passa por todas as telas e idiomas.
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-package-lock playwright@1.49.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/smoke.js

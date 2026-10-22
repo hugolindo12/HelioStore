@@ -180,6 +180,7 @@ function topCommunity() {
   return `<div class="rank"><h3 class="rank-t">Em alta na comunidade</h3>${top.map((a, i) => `<div class="rank-row" data-open="${esc(a.id)}"><b>${i + 1}</b>${iconHTML(a, 36)}<div class="rank-i"><h4>${esc(a.name)}</h4><p>${esc(tx(a, 'tagline'))}</p></div><span class="rank-n">${a.meta?.stars ? '★ ' + fmtNum(a.meta.stars) : ''}${a.meta?.downloads ? ' · ⬇ ' + fmtNum(a.meta.downloads) : ''}</span></div>`).join('')}</div>`;
 }
 
+const COLLS = { 'Para trabalhar': ['Produtividade', 'Desenvolvimento', 'Utilitários', 'Segurança'], 'Para criar': ['Multimídia', 'Criatividade'], 'Para jogar': ['Jogos', 'Social'] };
 function renderDiscover() {
   startSpot();
   const el = $('#view-discover'), q = S.query.trim().toLowerCase();
@@ -192,19 +193,55 @@ function renderDiscover() {
     return;
   }
   const sp = spotHTML();
-  const cats = ['Todos', ...new Set(S.apps.map((a) => a.category).filter(Boolean))];
+  const realCats = [...new Set(S.apps.map((a) => a.category).filter(Boolean))];
+  const colls = Object.keys(COLLS).filter((k) => S.apps.some((a) => COLLS[k].includes(a.category)));
+  const cats = ['Todos', ...colls, ...realCats];
   if (!cats.includes(S.cat)) S.cat = 'Todos';
-  let list = S.cat === 'Todos' ? S.apps.slice() : S.apps.filter((a) => a.category === S.cat);
   const when = (a) => Date.parse(a.meta?.updatedAt || a.source?.publishedAt || '') || 0;
+  const F = S.flt || (S.flt = {});
+  let list = S.cat === 'Todos' ? S.apps.slice() : COLLS[S.cat] ? S.apps.filter((a) => COLLS[S.cat].includes(a.category)) : S.apps.filter((a) => a.category === S.cat);
+  if (F.ver) list = list.filter((a) => a.download?.sha256);
+  if (F.lic) list = list.filter((a) => a.meta?.license);
+  if (F.new) list = list.filter((a) => Date.now() - when(a) < 30 * 864e5);
   if (S.sort === 'new') list.sort((x, y) => when(y) - when(x));
   else if (S.sort === 'az') list.sort((x, y) => x.name.localeCompare(y.name, I18N.locale));
   else if (S.sort === 'stars') list.sort((x, y) => (y.meta?.stars || 0) - (x.meta?.stars || 0));
   el.innerHTML = `<h1 class="title">Explorar</h1><p class="sub">Instale, abra e mantenha seus apps atualizados em um só lugar.</p>
+    ${S.cached ? '<div class="offline">Sem conexão com o catálogo: mostrando a última cópia salva.</div>' : ''}
     <div class="feats" id="feats">${sp.html}</div><div class="spot-dots" id="spot-dots">${spotDots(sp.pages, sp.page)}</div>
     ${S.cat === 'Todos' ? topCommunity() : ''}
-    <div class="chips">${cats.map((c) => `<button class="chip ${c === S.cat ? 'active' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
-    <div class="sortbar">${[['', 'Destaque'], ['new', 'Recentes'], ['stars', 'Estrelas'], ['az', 'A–Z']].map(([k, l]) => `<button class="sort ${(S.sort || '') === k ? 'on' : ''}" data-sort="${k}">${l}</button>`).join('')}</div>
-    <div class="grid">${list.map(card).join('')}</div>`;
+    <div class="chips">${cats.map((c) => `<button class="chip ${c === S.cat ? 'active' : ''} ${COLLS[c] ? 'coll' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <div class="sortbar"><span class="flts">${[['ver', 'Verificados'], ['lic', 'Com licença'], ['new', 'Novos']].map(([k, l]) => `<button class="sort ${F[k] ? 'on' : ''}" data-flt="${k}" aria-pressed="${!!F[k]}">${l}</button>`).join('')}</span>${[['', 'Destaque'], ['new', 'Recentes'], ['stars', 'Estrelas'], ['az', 'A–Z']].map(([k, l]) => `<button class="sort ${(S.sort || '') === k ? 'on' : ''}" data-sort="${k}">${l}</button>`).join('')}</div>
+    ${list.length ? `<div class="grid">${list.map(card).join('')}</div>` : '<div class="empty"><strong>Nada encontrado</strong>Tente outra palavra.</div>'}`;
+}
+
+// ───────────── Exportar / importar a lista de apps ─────────────
+function exportList() {
+  const apps = Object.keys(S.installed).map(byId).filter(Boolean).map((a) => (a.source?.repo ? { id: a.id, repo: a.source.repo } : { id: a.id }));
+  return JSON.stringify({ helio: 1, apps }, null, 2);
+}
+function openImport() {
+  openModalHTML(`<h2>Importar lista</h2><p class="sub" style="margin:4px 0 14px">Cole a lista exportada de outro computador. A loja instala o que estiver faltando.</p>
+    <textarea id="imp-text" class="fb-text mf-ta" rows="8" spellcheck="false" placeholder='{"helio":1,"apps":[…]}'></textarea>
+    <div class="ed-foot"><span class="grow"></span><button class="btn" data-modal-close>Cancelar</button><button class="btn primary" data-imp-go>Instalar tudo</button></div>`);
+  setTimeout(() => $('#imp-text')?.focus(), 50);
+}
+async function runImport() {
+  let list;
+  try { const j = JSON.parse($('#imp-text')?.value || ''); list = Array.isArray(j.apps) ? j.apps.slice(0, 60) : null; } catch {}
+  if (!list || !list.length) return toast('Lista inválida', 'Cole a lista exportada pela loja.', null, true);
+  closeModal();
+  const todo = [];
+  for (const it of list) {
+    if (!it || typeof it.id !== 'string') continue;
+    let a = byId(it.id);
+    if (!a && typeof it.repo === 'string' && ghParse(it.repo)) { try { await window.helio.github.add(repoUrl(ghParse(it.repo))); await reloadCatalog(false); a = byId(it.id); } catch {} }
+    if (a && !S.installed[a.id]) todo.push(a);
+  }
+  if (!todo.length) return toast('Tudo em dia', 'Nada para instalar.');
+  if (todo.some((a) => a.community) && !confirm(I18N.t('Há apps da comunidade na lista, publicados por terceiros.\n\nInstale apenas se você confia no autor. Continuar?'))) return;
+  toast('Instalando…', `${todo.length}`);
+  for (const a of todo) await install(a.id, true);
 }
 
 // ───────────── Biblioteca ─────────────
@@ -224,7 +261,7 @@ function renderLibrary() {
       <button class="btn sq danger" data-uninstall="${esc(id)}" title="Desinstalar">${ICON.trash}</button>${getBtn(a)}</div></div>`; };
 
   let html = '<h1 class="title">Biblioteca</h1><p class="sub">Seus apps instalados, downloads em andamento e atualizações.</p>' +
-    `<div class="lib-check"><button class="btn" id="lib-check" ${S.checking ? 'disabled' : ''}>${ICON.refresh} ${S.checking ? 'Verificando…' : 'Verificar atualizações'}</button><span>${S.lastCheck ? 'Última verificação às ' + S.lastCheck.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit' }) : 'A loja verifica sozinha a cada 30 minutos.'}</span></div>`;
+    `<div class="lib-check"><button class="btn" id="lib-check" ${S.checking ? 'disabled' : ''}>${ICON.refresh} ${S.checking ? 'Verificando…' : 'Verificar atualizações'}</button><span>${S.lastCheck ? 'Última verificação às ' + S.lastCheck.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit' }) : 'A loja verifica sozinha a cada 30 minutos.'}</span><span class="grow"></span><button class="btn" data-lib-export>${ICON.copy} Exportar lista</button><button class="btn" data-lib-import>Importar lista</button></div>`;
   if (jobs.length) html += `<div class="section"><h2>Baixando</h2></div><div class="rows">${jobs.map(jobRow).join('')}</div>`;
   if (ups.length) html += `<div class="section"><h2>Atualizações</h2><button class="btn" id="update-all">${ICON.refresh} Atualizar tudo</button></div><div class="rows">${ups.map(instRow).join('')}</div>`;
   const rest = ids.filter((id) => !ups.includes(id) && !S.jobs[id]);
@@ -384,15 +421,16 @@ async function openNews(auto) {
   try { S.settings = await window.helio.settings.set({ newsSeen: newsSig(), ...(cur ? { lastNewsVersion: cur } : {}) }); } catch {}
   refreshNewsDot();
 }
-const FB = { repo: '', label: '', version: '', type: 'idea', app: false, stars: 0 };
+const FB = { repo: '', label: '', version: '', type: 'idea', app: false, stars: 0, id: '', appRepo: '' };
 function openFeedback(ctx) {
-  Object.assign(FB, { repo: '', label: 'Helio Store', version: S.self?.current || '', type: 'idea', app: false, stars: 0 }, ctx || {});
+  Object.assign(FB, { repo: '', label: 'Helio Store', version: S.self?.current || '', type: 'idea', app: false, stars: 0, id: '', appRepo: '' }, ctx || {});
   if (!FB.repo) FB.repo = S.self?.repo || '';
   if (!FB.repo) return toast('Defina o repositório', 'Informe o repositório da Helio Store em Ajustes para enviar feedback.', null, true);
   const chip = (k, l) => `<button class="chip ${FB.type === k ? 'on' : ''}" data-fb-type="${k}" aria-pressed="${FB.type === k}">${l}</button>`;
   $('#modal-card').innerHTML = `<h2>Enviar feedback</h2>
     <p class="sub" style="margin:4px 0 14px"><b>${esc(FB.label)}</b> Abre uma página do GitHub com a sua mensagem já preenchida. Você só confirma lá (precisa de conta no GitHub) e ela fica pública.</p>
-    <div class="d-shortcuts" style="margin:0 0 10px">${chip('idea', 'Ideia')}${chip('bug', 'Problema')}${chip('praise', 'Elogio')}</div>
+    <div class="d-shortcuts" style="margin:0 0 10px">${chip('idea', 'Ideia')}${chip('bug', 'Problema')}${chip('praise', 'Elogio')}${FB.app ? chip('report', 'Denunciar') : ''}</div>
+    ${FB.type === 'report' ? '<p class="sub" style="margin:0 0 10px">A denúncia vai para o repositório da Helio Store, para a equipe analisar o app.</p>' : ''}
     ${FB.app ? `<div class="fb-stars" role="radiogroup" aria-label="Nota">${[1, 2, 3, 4, 5].map((n) => `<button class="star ${FB.stars >= n ? 'on' : ''}" data-fb-star="${n}" aria-label="${n}">★</button>`).join('')}</div>` : ''}
     <textarea id="fb-text" class="fb-text" rows="6" maxlength="3000" placeholder="Escreva aqui o que você quer contar…"></textarea>
     <div class="ed-foot"><span class="grow"></span><button class="btn" data-modal-close>Cancelar</button><button class="btn primary" data-fb-send>Abrir no GitHub</button></div>`;
@@ -402,11 +440,14 @@ function openFeedback(ctx) {
 function sendFeedback() {
   const txt = ($('#fb-text')?.value || '').trim();
   if (!txt && !FB.stars) { $('#fb-text')?.focus(); return toast('Escreva sua mensagem', 'O campo está vazio.'); }
-  const kind = { idea: ['Ideia', 'enhancement'], bug: ['Problema', 'bug'], praise: ['Elogio', 'feedback'] }[FB.type];
+  const kind = { idea: ['Ideia', 'enhancement'], bug: ['Problema', 'bug'], praise: ['Elogio', 'feedback'], report: ['Denúncia', 'report'] }[FB.type];
+  let target = FB.repo;
+  if (FB.type === 'report') { target = S.self?.repo || ''; if (!target) return toast('Defina o repositório', 'Informe o repositório da Helio Store em Ajustes para enviar feedback.', null, true); }
   const os = (navigator.userAgent.match(/Windows NT [\d.]+/) || ['Windows'])[0];
   const title = `[${kind[0]}${FB.stars ? ' ' + '★'.repeat(FB.stars) : ''}] ${txt.split('\n')[0].slice(0, 70)}`;
-  const body = `${txt}\n\n---\n${FB.label}${FB.version ? ' v' + FB.version : ''} · ${os}`;
-  const url = `https://github.com/${FB.repo}/issues/new?labels=${encodeURIComponent(kind[1])}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  const body = `${txt}\n\n---\n${FB.label}${FB.version ? ' v' + FB.version : ''} · ${os}${FB.type === 'report' && FB.appRepo ? `\nhttps://github.com/${FB.appRepo}` : ''}`;
+  const url = `https://github.com/${target}/issues/new?labels=${encodeURIComponent(kind[1])}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  if (FB.app && FB.stars && FB.id && FB.type !== 'report') { const r = { ...(S.settings.ratings || {}), [FB.id]: FB.stars }; window.helio.settings.set({ ratings: r }).then((st) => { S.settings = st; if (S.detailId === FB.id) openDetail(FB.id); }).catch(() => {}); }
   window.helio.openExternal(url); closeModal(); toast('Abrindo o GitHub', 'Confirme o envio na página que abriu.');
 }
 
@@ -417,7 +458,7 @@ function renderSelf() {
   el.hidden = !show;
   if (show) {
     el.innerHTML = u.status === 'available'
-      ? `<b>Helio Store v${esc(u.version)} disponível</b><span>${esc(u.error || 'Você está na v' + u.current + '.')}</span><button class="btn primary" data-self-install>Atualizar agora</button>`
+      ? `<b>Helio Store v${esc(u.version)} disponível</b><span>${esc(u.error || u.lastFail || 'Você está na v' + u.current + '.')}</span>${u.url && (u.error || u.lastFail) ? `<button class="btn" data-ext="${esc(u.url)}">Baixar manualmente</button>` : ''}<button class="btn primary" data-self-install>${u.error || u.lastFail ? 'Tentar de novo' : 'Atualizar agora'}</button>`
       : `<b>${u.status === 'installing' ? 'Instalando…' : 'Baixando a atualização…'}</b><div class="bar"><i style="width:${u.percent < 0 ? 40 : u.percent}%"></i></div><span style="flex:none">${u.percent >= 0 ? u.percent + '%' : ''}</span>`;
   }
   if (S.view === 'settings') { const r = $('#self-status'); if (r) r.textContent = selfText(); }
@@ -464,6 +505,7 @@ function checkItems(d) {
   const it = [];
   const add = (ok, good, tip) => it.push({ ok, text: ok ? good : tip });
   add(true, `Release v${d.version} com ${d.file} (${d.type}, ${d.sizeMB} MB)`);
+  add((d.installers || 1) <= 1, 'Um instalador no Release', `O Release ${d.tag || ''} tem ${d.installers} instaladores. Deixe só o da versão atual, senão a loja pode baixar o errado`);
   add(d.sha256, 'SHA-256 publicado: a loja confere o arquivo na instalação', 'Sem SHA-256: a loja não consegue conferir o arquivo. Crie o Release de novo pelo GitHub para ele ser gerado');
   add(!!d.license, `Licença: ${d.license}`, 'Sem licença detectada: adicione um arquivo LICENSE ao repositório');
   add(d.described, 'Descrição encontrada no README', 'Sem descrição: escreva um README ou preencha a descrição do repositório');
@@ -503,6 +545,68 @@ function checkHTML() {
   return `<div class="chk-box"><div class="chk-h"><b>${esc(d.name)}</b><span>${okN} de ${it.length} itens ok</span></div>
     <div class="chk-prev"><span class="chk-prev-l">Assim ele aparece na loja</span><div class="chk-prev-c">${iconHTML(prev, 44)}<div><h4>${esc(d.name)}</h4><p>${esc(tx({ tagline: d.tagline, i18n: undefined }, 'tagline') || '')}</p></div></div></div>
     ${it.map((x) => `<div class="chk ${x.ok ? 'c-ok' : 'c-warn'}"><i>${x.ok ? '✓' : '!'}</i><span>${esc(x.text)}</span></div>`).join('')}</div>`;
+}
+
+// ───────────── Helio Creator: nova versão, estatísticas, gerador ─────────────
+const bumpPatch = (v) => { const m = /^(\d+)\.(\d+)\.(\d+)/.exec(String(v || '')); return m ? `${m[1]}.${m[2]}.${+m[3] + 1}` : '1.0.0'; };
+const NV = { id: '', repo: '' };
+function openModalHTML(html) {
+  $('#modal-card').innerHTML = html;
+  const m = $('#modal'); m.classList.add('open'); m.setAttribute('aria-hidden', 'false'); EDIT.id = null;
+}
+async function openNewVersion(id) {
+  const a = byId(id); if (!a?.source?.repo) return;
+  NV.id = id; NV.repo = a.source.repo;
+  openModalHTML(`<h2>Publicar nova versão</h2>
+    <p class="sub" style="margin:4px 0 14px"><b>${esc(a.name)}</b> está na v${esc(a.version)}. A loja abre a página de Release do GitHub já preenchida; você só anexa o instalador e publica.</p>
+    <div class="nv-form"><label>Versão<input id="nv-ver" value="${esc(bumpPatch(a.version))}" autocomplete="off" spellcheck="false"></label>
+      <label>Título<input id="nv-title" value="${esc(a.name)} ${esc(bumpPatch(a.version))}" autocomplete="off"></label>
+      <label>O que mudou<textarea id="nv-notes" class="fb-text" rows="5" placeholder="Escreva aqui o que você quer contar…"></textarea></label></div>
+    <div class="chk-box" id="nv-chk"><em>Lendo o repositório no GitHub…</em></div>
+    <div class="ed-foot"><span class="grow"></span><button class="btn" data-modal-close>Cancelar</button><button class="btn primary" data-nv-open>Abrir no GitHub</button></div>`);
+  try {
+    const d = await window.helio.github.inspect(repoUrl(a.source.repo)); if (NV.id !== id) return;
+    const items = [
+      [(d.installers || 1) <= 1, 'Um instalador no Release', `O Release ${d.tag || ''} tem ${d.installers} instaladores. Deixe só o da versão atual, senão a loja pode baixar o errado`],
+      [!!d.sha256, 'SHA-256 publicado: a loja confere o arquivo na instalação', 'Sem SHA-256: a loja não consegue conferir o arquivo. Crie o Release de novo pelo GitHub para ele ser gerado'],
+    ];
+    const box = $('#nv-chk'); if (box) box.innerHTML = `<div class="chk c-ok"><i>i</i><span>${esc(I18N.t('Release atual: {0}').replace('{0}', d.tag || d.version))}</span></div>` + items.map(([ok, g, w]) => `<div class="chk ${ok ? 'c-ok' : 'c-warn'}"><i>${ok ? '✓' : '!'}</i><span>${esc(I18N.t(ok ? g : w).replace('{0}', ''))}</span></div>`).join('') + `<div class="chk c-ok"><i>i</i><span>${esc(I18N.t('Antes de publicar: aumente a versão no app e anexe o instalador novo.'))}</span></div>`;
+  } catch (e) { const box = $('#nv-chk'); if (box) box.innerHTML = `<div class="chk c-warn"><i>!</i><span>${esc(cleanErr(e))}</span></div>`; }
+}
+function sendNewVersion() {
+  const v = ($('#nv-ver')?.value || '').trim().replace(/^v/i, ''), title = ($('#nv-title')?.value || '').trim(), notes = ($('#nv-notes')?.value || '').trim();
+  if (!/^\d+\.\d+\.\d+/.test(v)) { $('#nv-ver')?.focus(); return toast('Versão inválida', 'Use algo como 1.2.0.', null, true); }
+  window.helio.openExternal(`https://github.com/${NV.repo}/releases/new?tag=v${encodeURIComponent(v)}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(notes)}`);
+  closeModal(); toast('Abrindo o GitHub', 'Confirme o envio na página que abriu.');
+}
+async function openStats(id) {
+  const a = byId(id); if (!a?.source?.repo) return;
+  openModalHTML(`<h2>Estatísticas</h2><p class="sub" style="margin:4px 0 14px"><b>${esc(a.name)}</b></p><div id="st-body"><em class="sub">Carregando…</em></div><div class="ed-foot"><span class="grow"></span><button class="btn primary" data-modal-close>Fechar</button></div>`);
+  try {
+    const rows = await window.helio.github.stats(a.source.repo); if (!$('#st-body')) return;
+    const max = Math.max(1, ...rows.map((r) => r.downloads)), total = rows.reduce((n, r) => n + r.downloads, 0);
+    $('#st-body').innerHTML = rows.length
+      ? `<div class="st-sum"><div><b>${fmtNum(total)}</b><span>Downloads</span></div><div><b>${rows.length}</b><span>Versões</span></div><div><b>${fmtNum(a.meta?.stars || 0)}</b><span>Estrelas</span></div></div>
+         <div class="st-rows">${rows.map((r) => `<div class="st-row"><span class="st-t">${esc(r.tag)}</span><div class="st-bar"><i style="width:${Math.max(2, Math.round(r.downloads / max * 100))}%"></i></div><b>${fmtNum(r.downloads)}</b></div>`).join('')}</div>`
+      : '<div class="empty" style="padding:14px 0;text-align:left">Sem Release</div>';
+  } catch (e) { if ($('#st-body')) $('#st-body').innerHTML = `<div class="pub-msg error">${esc(cleanErr(e))}</div>`; }
+}
+async function fillManifest() {
+  const link = splitLinks($('#pub-url')?.value || S.publish.input)[0] || (S.publish.check?.data?.repo ? repoUrl(S.publish.check.data.repo) : '');
+  if (!link) return toast('Link inválido', 'Cole o link do repositório no GitHub.', null, true);
+  const btn = $('[data-mf-fill]'); if (btn) btn.disabled = true;
+  try {
+    const d = await window.helio.github.inspect(link);
+    const v = { name: d.name, tagline: d.tagline, description: d.description, category: d.category, exe: d.exe };
+    for (const [k, val] of Object.entries(v)) { MF[k] = val || ''; const i = $(`[data-mf="${k}"]`); if (i) i.value = val || ''; }
+    const o = $('#mf-out'); if (o) o.textContent = manifestText();
+    toast('helio.json preenchido', 'Revise os campos e copie o arquivo.');
+  } catch (e) { toast('Não foi possível ler o repositório', cleanErr(e), null, true); }
+  if (btn) btn.disabled = false;
+}
+function readmeTemplate() {
+  const n = MF.name || 'Meu App', t = MF.tagline || 'Uma frase curta sobre o app.'; // i18n-ignore
+  return `# ${n}\n\n${t}\n\n${MF.description || 'Descreva o que o app faz e para quem ele é.'}\n\n## Instalação\n\nBaixe o instalador na aba **Releases** ou instale pela Helio Store.\n\n## Recursos\n\n- \n- \n\n## Capturas de tela\n\n![Tela principal](screenshots/1.png)\n\n## Licença\n\nMIT\n`; // i18n-ignore
 }
 
 // ───────────── Conta do GitHub ─────────────
@@ -560,7 +664,7 @@ function renderPublish() {
     return `<div class="row" data-open="${esc(a.id)}">${iconHTML(a, 44)}
       <div class="row-info"><h4>${esc(a.name)}${S.account && repo && repo.split('/')[0].toLowerCase() === S.account.login.toLowerCase() ? '<span class="tag">Seu repositório</span>' : ''}</h4><p>${info.map(esc).join(' · ')}</p></div>
       <div class="row-acts">${repo ? `<button class="btn sq" data-copy="${esc(repoUrl(repo))}" title="Copiar link">${ICON.copy}</button><button class="btn sq" data-ext="${esc(repoUrl(repo))}" title="Abrir no GitHub">${ICON.github}</button>` : ''}
-        ${repo && P.health?.[repo.toLowerCase()] ? healthBadge(P.health[repo.toLowerCase()], repo) : ''}${repo ? `<button class="btn" data-recheck="${esc(repo)}">Verificar</button>` : ''}<button class="btn" data-edit="${esc(a.id)}">Editar</button><button class="btn" data-remove="${esc(a.id)}">Remover</button>${getBtn(a)}</div></div>`;
+        ${repo && P.health?.[repo.toLowerCase()] ? healthBadge(P.health[repo.toLowerCase()], repo) : ''}${repo ? `<button class="btn" data-recheck="${esc(repo)}">Verificar</button><button class="btn" data-newver="${esc(a.id)}">Nova versão</button><button class="btn" data-stats="${esc(a.id)}">Estatísticas</button>` : ''}<button class="btn" data-edit="${esc(a.id)}">Editar</button><button class="btn" data-remove="${esc(a.id)}">Remover</button>${getBtn(a)}</div></div>`;
   };
   el.innerHTML = `<div class="creator-head"><h1 class="title">Helio Creator</h1><button class="btn" data-guide>${ICON.help} Como funciona</button></div>
     <p class="sub">Cole o link do repositório no GitHub. A loja lê o último Release, instala e mantém o app atualizado sozinha sempre que você publicar uma versão nova.</p>
@@ -591,7 +695,7 @@ function renderPublish() {
         <input data-mf="icon" placeholder="Ícone (ex.: assets/icon.png)" autocomplete="off" spellcheck="false">
         <datalist id="mf-cats">${[...new Set(S.apps.map((a) => a.category).filter(Boolean))].map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
       </div>
-      <button class="btn" data-copy-manifest>${ICON.copy} Copiar</button> <button class="btn" data-mf-translate ${MF.busy ? 'disabled' : ''}>${MF.busy ? 'Traduzindo…' : 'Traduzir para todos os idiomas'}</button>
+      <button class="btn" data-copy-manifest>${ICON.copy} Copiar</button> <button class="btn" data-mf-translate ${MF.busy ? 'disabled' : ''}>${MF.busy ? 'Traduzindo…' : 'Traduzir para todos os idiomas'}</button> <button class="btn" data-mf-fill>Preencher pelo repositório</button> <button class="btn" data-copy-readme>Copiar README modelo</button>
       <p class="sub" style="margin:8px 0 0">Gera o bloco “i18n” com a frase curta e a descrição em cada idioma da loja. Revise antes de publicar.</p><pre id="mf-out">${esc(manifestText())}</pre></details>
     <div class="section"><h2>Seus apps</h2>${mine.some((a) => a.source?.repo) ? `<button class="btn" data-check-all ${P.healthBusy ? 'disabled' : ''}>${ICON.refresh} ${P.healthBusy ? esc(P.healthBusy) : 'Verificar todos'}</button>` : ''}<span>${mine.length}${mine.length ? ' · ★ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.stars || 0), 0)) + ' · ⬇ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.downloads || 0), 0)) : ''}</span></div>
     ${mine.length ? `<div class="rows">${mine.map(row).join('')}</div>
@@ -769,6 +873,7 @@ function openDetail(id) {
   const keepScroll = $('#detail').classList.contains('open') ? $('#detail-panel').scrollTop : 0;
   $('#detail-panel').innerHTML = `<div class="d-head">${iconHTML(a, 84)}<div><h2>${esc(a.name)}</h2><p>${esc(a.developer || (a.mine && S.settings.profile?.name) || '')}${a.community ? '<span class="tag">Comunidade</span>' : ''}</p></div></div>
     <div class="d-act">${getBtn(a, true)}${inst?.prevVersion ? `<button class="btn" data-rollback="${esc(id)}" title="Volta para a versão anterior guardada">Voltar para v${esc(inst.prevVersion)}</button>` : ''}${inst ? `<button class="btn danger" data-uninstall="${esc(id)}">Desinstalar</button>` : ''}${a.source?.url ? `<button class="btn" data-ext="${esc(a.source.url)}">${ICON.github} GitHub</button>` : ''}${a.source?.repo ? `<button class="btn" data-feedback-app="${esc(id)}">Feedback</button>` : ''}${/^https?:\/\//i.test(a.meta?.homepage || '') ? `<button class="btn" data-ext="${esc(a.meta.homepage)}">Site</button>` : ''}${a.mine ? `<button class="btn" data-edit="${esc(id)}">Personalizar</button>` : ''}</div>
+    ${S.settings.ratings?.[id] ? `<div class="d-rate"><span>Sua nota</span><b>${'★'.repeat(S.settings.ratings[id])}${'☆'.repeat(5 - S.settings.ratings[id])}</b></div>` : ''}
     ${shortcutsRow(a, inst)}
     <div class="d-info"><div><span>Categoria</span><b>${esc(a.category || '—')}</b></div><div><span>Tamanho</span><b>${a.sizeMB ? a.sizeMB + ' MB' : '—'}</b></div><div><span>Versão</span><b>${esc(a.version)}</b></div></div>
     ${trustNote(a)}${metaRows(a)}
@@ -876,9 +981,9 @@ function initDockInteractions() {
 }
 
 // ───────────── Ações ─────────────
-async function install(id) {
+async function install(id, skipConfirm) {
   const a = byId(id); if (!a || S.jobs[id]) return;
-  if (a.community && !S.installed[id] && !confirm(I18N.t(`${a.name} é um app da comunidade, publicado por ${a.developer || I18N.t('terceiros')}.\n\nInstale apenas se você confia no autor. Continuar?`))) return;
+  if (!skipConfirm && a.community && !S.installed[id] && !confirm(I18N.t(`${a.name} é um app da comunidade, publicado por ${a.developer || I18N.t('terceiros')}.\n\nInstale apenas se você confia no autor. Continuar?`))) return;
   S.local.add(id);
   S.jobs[id] = { phase: 'downloading', percent: 0, received: 0, total: 0, speed: 0 };
   refreshButtons(id); renderDock(); updateCounters();
@@ -931,6 +1036,7 @@ async function fetchAll() {
   document.documentElement.classList.toggle('big-catalog', S.apps.length > 150);
   refreshNewsDot();
   applyDockPrefs();
+  S.cached = !!cat.cached;
   if (cat.remoteError) toast('Catálogo remoto indisponível', cat.remoteError, null, true);
 }
 async function reloadCatalog(rerender = true) {
@@ -965,10 +1071,10 @@ document.addEventListener('click', async (e) => {
   }
   if (t('#btn-news')) return openNews(false);
   if ((el = t('[data-news-open]'))) { closeModal(); return openDetail(el.dataset.newsOpen); }
-  if ((el = t('[data-feedback-app]'))) { const fa = byId(el.dataset.feedbackApp); if (fa?.source?.repo) openFeedback({ repo: fa.source.repo, label: fa.name, version: fa.version, app: true }); return; }
+  if ((el = t('[data-feedback-app]'))) { const fa = byId(el.dataset.feedbackApp); if (fa?.source?.repo) openFeedback({ repo: fa.source.repo, appRepo: fa.source.repo, id: fa.id, label: fa.name, version: fa.version, app: true }); return; }
   if (t('[data-feedback]')) return openFeedback();
-  if ((el = t('[data-fb-type]'))) { const v = $('#fb-text')?.value || ''; FB.type = el.dataset.fbType; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version, app: FB.app, stars: FB.stars }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
-  if ((el = t('[data-fb-star]'))) { const v = $('#fb-text')?.value || ''; FB.stars = FB.stars === +el.dataset.fbStar ? 0 : +el.dataset.fbStar; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version, app: FB.app, stars: FB.stars }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
+  if ((el = t('[data-fb-type]'))) { const v = $('#fb-text')?.value || ''; FB.type = el.dataset.fbType; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version, app: FB.app, stars: FB.stars, id: FB.id, appRepo: FB.appRepo }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
+  if ((el = t('[data-fb-star]'))) { const v = $('#fb-text')?.value || ''; FB.stars = FB.stars === +el.dataset.fbStar ? 0 : +el.dataset.fbStar; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version, app: FB.app, stars: FB.stars, id: FB.id, appRepo: FB.appRepo }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
   if (t('[data-fb-send]')) return sendFeedback();
   if ((el = t('[data-shortcut]'))) {
     const [sid, where] = el.dataset.shortcut.split('|'), on = el.getAttribute('aria-pressed') !== 'true';
@@ -997,8 +1103,17 @@ document.addEventListener('click', async (e) => {
     const n = Object.keys(MF.i18n).length; if (!n) toast('Não foi possível traduzir agora', 'Verifique a conexão e tente de novo.', null, true); else toast('Traduções geradas', `${n} idiomas no bloco “i18n”. Revise e copie o helio.json.`);
     return renderPublish();
   }
+  if ((el = t('[data-flt]'))) { S.flt = S.flt || {}; S.flt[el.dataset.flt] = !S.flt[el.dataset.flt]; return renderDiscover(); }
   if ((el = t('[data-spot]'))) { S.spot = +el.dataset.spot; updateSpot(true); return; }
+  if (t('[data-lib-export]')) { await copyText(exportList()); return toast('Lista copiada', 'Cole no campo “Importar lista” do outro computador.'); }
+  if (t('[data-lib-import]')) return openImport();
+  if (t('[data-imp-go]')) return runImport();
   if (t('[data-check-all]')) return checkAll();
+  if ((el = t('[data-newver]'))) return openNewVersion(el.dataset.newver);
+  if (t('[data-nv-open]')) return sendNewVersion();
+  if ((el = t('[data-stats]'))) return openStats(el.dataset.stats);
+  if (t('[data-mf-fill]')) return fillManifest();
+  if (t('[data-copy-readme]')) { await copyText(readmeTemplate()); return toast('README copiado', 'Cole no README.md do repositório.'); }
   if ((el = t('[data-recheck]'))) {
     const link = repoUrl(el.dataset.recheck); S.publish.input = link; S.publish.check = { busy: true }; renderPublish();
     $('#view-publish')?.scrollTo?.({ top: 0, behavior: 'smooth' }); window.scrollTo?.({ top: 0, behavior: 'smooth' });

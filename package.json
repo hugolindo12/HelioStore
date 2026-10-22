@@ -10,7 +10,8 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "dist": "electron-builder --win --publish never",
-    "i18n": "node scripts/i18n-check.js"
+    "i18n": "node scripts/i18n-check.js",
+    "test": "node tests/smoke.js"
   },
   "build": {
     "appId": "com.helio.store",

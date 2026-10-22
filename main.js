@@ -498,14 +498,17 @@ async function loadCatalog() {
   try { local = JSON.parse(await fsp.readFile(localFile, 'utf8')); } catch (e) { console.error(e); }
 
   let remote = { apps: [] };
-  let remoteError = null;
+  let remoteError = null, cached = false;
   if (state.settings.catalogUrl) {
     try {
       const url = state.settings.catalogUrl;
       const buf = /^[a-zA-Z]:[\\/]/.test(url) ? await fsp.readFile(url) : await fetchBuffer(url);
       remote = JSON.parse(buf.toString('utf8'));
+      if (/^https?:/i.test(url)) fsp.writeFile(path.join(app.getPath('userData'), 'remote-cache.json'), JSON.stringify(remote)).catch(() => {});
     } catch (e) {
       remoteError = e.message;
+      // sem internet: usa a última cópia salva do catálogo remoto
+      try { remote = JSON.parse(await fsp.readFile(path.join(app.getPath('userData'), 'remote-cache.json'), 'utf8')); cached = true; } catch {}
     }
   }
   const map = new Map();
@@ -515,7 +518,7 @@ async function loadCatalog() {
   for (const a of local.apps || []) map.set(a.id, applyLatest(a));
   const remoteWeb = /^https?:/i.test(String(state.settings.catalogUrl || ''));
   for (const a of remote.apps || []) map.set(a.id, remoteWeb ? { ...applyLatest(a), remote: true } : applyLatest(a));
-  return { apps: [...map.values()], featured: remote.featured || local.featured || [], remoteError };
+  return { apps: [...map.values()], featured: remote.featured || local.featured || [], remoteError, cached };
 }
 
 // ───────────────────── Conta do GitHub ─────────────────────
@@ -642,6 +645,12 @@ function selfRepoName() {
   const p = gh.parseRepo(r);
   return p ? `${p.owner}/${p.repo}` : '';
 }
+function checkPendingSelf() {
+  const p = state.pendingSelf; if (!p) return;
+  delete state.pendingSelf; saveState();
+  if (vNewer(p.to, app.getVersion()) && Date.now() - p.at < 24 * 3600e3) setSelf({ lastFail: `A atualização para a v${p.to} não foi concluída (a loja continua na v${app.getVersion()}).` });
+  else setSelf({ lastFail: '' });
+}
 function setSelf(patch) { Object.assign(selfUpd, { current: app.getVersion(), repo: selfRepoName() }, patch); send('self:changed', selfUpd); return selfUpd; }
 async function checkSelfUpdate(manual) {
   if (selfUpd.status === 'downloading') return selfUpd;
@@ -661,7 +670,7 @@ async function checkSelfUpdate(manual) {
     if (!/^https:\/\/([\w-]+\.)?(github\.com|githubusercontent\.com)\//i.test(asset.browser_download_url || '')) throw new Error('Endereço de download inesperado no Release.');
     selfAsset = { url: asset.browser_download_url, name: asset.name, sha256: (/^sha256:([0-9a-f]{64})$/i.exec(asset.digest || '') || [])[1] };
     if (selfNotified !== tag) { selfNotified = tag; notify(mt('Helio Store {0} disponível', tag), mt('Abra a loja e clique em Atualizar agora.')); }
-    const res = setSelf({ status: 'available', version: tag, notes: String(rel.body || '').slice(0, 1500), error: '' });
+    const res = setSelf({ status: 'available', version: tag, url: String(rel.html_url || ''), notes: String(rel.body || '').slice(0, 1500), error: '' });
     // Atualização automática: só quando a loja está em segundo plano (janela escondida), uma tentativa por versão
     const hidden = !win || win.isDestroyed() || !win.isVisible();
     if (state.settings.autoUpdateSelf !== false && app.isPackaged && hidden && selfAutoTried !== tag) {
@@ -691,7 +700,9 @@ async function installSelfUpdate() {
   }
   setSelf({ status: 'installing', percent: 100 });
   // /S = silencioso; --updated e --force-run (electron-builder/NSIS) reabrem a loja ao terminar
+  state.pendingSelf = { to: selfUpd.version, from: app.getVersion(), at: Date.now() }; saveState(); // se depois de reabrir a versão for a mesma, a atualização falhou
   const child = spawn(dest, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore' });
+  child.on('error', (e) => { isQuitting = false; delete state.pendingSelf; saveState(); setSelf({ status: 'available', percent: 0, error: `O Windows não deixou abrir o instalador (${e.code || e.message}). Se o antivírus bloqueou, baixe e instale manualmente.` }); });
   child.unref();
   setTimeout(() => { isQuitting = true; app.quit(); }, 600);
   return true;
@@ -1259,7 +1270,12 @@ app.whenReady().then(() => {
       sha256: !!e.download.sha256, license: e.meta.license || '', manifest: !!e.source.manifest, iconSource: e.iconSource,
       shots: (e.screenshots || []).length, exe: e.download.exe || '', described: e.description !== 'Sem descrição.', category: e.category, // i18n-ignore
       tagline: e.tagline, description: String(e.description || '').slice(0, 400), icon: e.icon || '', i18nLangs: Object.keys(e.i18n || {}),
+      installers: e.source.installers || 1, tag: e.source.tag || '',
     };
+  });
+  ipcMain.handle('github:stats', async (_, repo) => {
+    const p = gh.parseRepo(repo); if (!p) throw new Error('Link inválido');
+    return gh.releaseStats(p.owner, p.repo, state.settings.githubToken);
   });
   ipcMain.handle('self:get', () => setSelf({}));
   ipcMain.handle('self:check', () => checkSelfUpdate(true));
@@ -1311,6 +1327,7 @@ app.whenReady().then(() => {
       else showWindow();
     });
   } catch {}
+  checkPendingSelf();
   setTimeout(() => { checkUpdates().catch(() => {}); checkSelfUpdate(false).catch(() => {}); }, 6000);
   setInterval(() => { checkUpdates().catch(() => {}); checkSelfUpdate(false).catch(() => {}); }, 30 * 60 * 1000);
 });

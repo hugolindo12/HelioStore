@@ -112,6 +112,17 @@ async function fetchRelease(owner, repo, token) {
   return rel;
 }
 
+// Downloads por versão (últimos Releases) para o painel de estatísticas do Helio Creator
+async function releaseStats(owner, repo, token) {
+  const all = await api(`/repos/${owner}/${repo}/releases?per_page=12`, token);
+  if (!all) throw new Error('Repositório não encontrado (ou é privado).');
+  return all.filter((r) => !r.draft).map((r) => ({
+    tag: r.tag_name, date: r.published_at, url: r.html_url,
+    downloads: (r.assets || []).reduce((n, a) => n + (a.download_count || 0), 0),
+    files: (r.assets || []).filter((a) => /\.(zip|exe|msi)$/i.test(a.name)).length,
+  }));
+}
+
 // ───────── Extras: categoria por tópicos, ícone/capturas na árvore, README ─────────
 const TOPIC_CATS = [
   [/^(game|games|gaming|jogo|jogos|gamedev)$/, 'Jogos'],
@@ -260,7 +271,7 @@ async function resolveRepo(input, { token } = {}) {
       updatedAt: rel.published_at, homepage: info.homepage || null, topics: info.topics || [],
     },
     i18n: cleanI18n(manifest.i18n),
-    source: { type: 'github', repo: info.full_name, url: info.html_url, stars: info.stargazers_count, publishedAt: rel.published_at, manifest: Object.keys(manifest).length > 0 },
+    source: { type: 'github', repo: info.full_name, url: info.html_url, stars: info.stargazers_count, publishedAt: rel.published_at, tag: rel.tag_name, installers: (rel.assets || []).filter((x) => /\.(exe|msi)$/i.test(x.name) && !/blockmap/i.test(x.name)).length, manifest: Object.keys(manifest).length > 0 },
   };
 }
 
@@ -339,4 +350,4 @@ async function listMyRepos(token) {
 }
 
 const _resetNet = () => { limitedUntil = 0; offlineUntil = 0; }; // usado nos testes
-module.exports = { cleanI18n, _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };
+module.exports = { releaseStats, cleanI18n, _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };

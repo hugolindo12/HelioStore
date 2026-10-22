@@ -2,6 +2,18 @@
 // Aparecem uma vez depois que a loja se atualiza e no botão de novidades (estrela) do topo.
 window.NEWS = [
   {
+    v: '2.0.2',
+    items: [
+      'Atualização da loja mais segura: se algo falhar, a loja mostra o motivo e oferece tentar de novo ou baixar manualmente.',
+      'Filtros e coleções na página inicial.',
+      'Exportar e importar a lista de apps instalados.',
+      'Denunciar apps e guardar a sua nota de cada app.',
+      'Modo offline: sem internet, a loja mostra o último catálogo salvo.',
+      'Helio Creator: Nova versão, Estatísticas, Verificar todos e gerador de helio.json.',
+      'Novo idioma: hindi.',
+    ],
+  },
+  {
     v: '2.0.1',
     items: [
       'Destaque da página inicial que alterna entre os apps mais baixados.',

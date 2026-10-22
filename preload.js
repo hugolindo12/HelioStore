@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('helio', {
     remove: (id) => ipcRenderer.invoke('github:remove', id),
     override: (id, patch) => ipcRenderer.invoke('github:override', id, patch),
     check: () => ipcRenderer.invoke('github:check'),
+    stats: (repo) => ipcRenderer.invoke('github:stats', repo),
   },
   onStateChanged: (cb) => ipcRenderer.on('state:changed', () => cb()),
   onCatalogChanged: (cb) => ipcRenderer.on('catalog:changed', (_, p) => cb(p)),
