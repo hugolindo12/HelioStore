@@ -173,7 +173,7 @@ function readmeInfo(md = '', rawBase = '') {
 
 // Resolve um link do GitHub em uma entrada completa do catálogo
 // helio.json pode trazer textos já traduzidos: { "i18n": { "en": { "tagline": "…", "description": "…" } } }
-const I18N_LANGS = ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru'];
+const I18N_LANGS = ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru', 'hi'];
 function cleanI18n(raw) {
   if (!raw || typeof raw !== 'object') return undefined;
   const out = {};

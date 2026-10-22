@@ -4,7 +4,7 @@
 // Tudo é guardado em cache, então cada texto é traduzido uma única vez por idioma.
 const https = require('https');
 
-const CODE = { pt: 'pt', en: 'en', es: 'es', fr: 'fr', de: 'de', it: 'it', ja: 'ja', zh: 'zh-CN', ru: 'ru' };
+const CODE = { pt: 'pt', en: 'en', es: 'es', fr: 'fr', de: 'de', it: 'it', ja: 'ja', zh: 'zh-CN', ru: 'ru', hi: 'hi' };
 
 // Adivinha se o texto está em pt/en/es (suficiente para não traduzir o que já está no idioma certo)
 const WORDS = {
@@ -20,6 +20,7 @@ function guessLang(text) {
   if (/[぀-ヿ]/.test(text)) return 'ja';
   if (/[一-鿿]/.test(text)) return 'zh';
   if (/[Ѐ-ӿ]/.test(text)) return 'ru';
+  if (/[ऀ-ॿ]/.test(text)) return 'hi';
   const w = String(text).toLowerCase().match(/[a-zà-ÿ]+/g) || [];
   if (w.length < 3) return null;
   let best = null, bs = 0, second = 0;

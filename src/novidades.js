@@ -6,7 +6,7 @@ window.NEWS = [
     items: [
       'Destaque da página inicial que alterna entre os apps mais baixados.',
       'Textos dos apps traduzidos automaticamente para o seu idioma.',
-      'Novos idiomas: francês, alemão, italiano, japonês, chinês e russo.',
+      'Novos idiomas: francês, alemão, italiano, japonês, chinês, russo e hindi.',
       'Avalie os apps com estrelas ao enviar feedback.',
       'Ao atualizar um app, a loja mostra o resumo do que mudou.',
       'Novidades e Feedback na loja.',

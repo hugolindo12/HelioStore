@@ -524,3 +524,7 @@ html[data-theme="light"] .chk.c-ok i { color: #1a9a3c; } html[data-theme="light"
 .chk-prev-c { display: flex; align-items: center; gap: 12px; }
 .chk-prev-c h4 { font-size: 14px; } .chk-prev-c p { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .mf-ta { width: 100%; box-sizing: border-box; resize: vertical; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; user-select: text; grid-column: 1 / -1; }
+
+.hb { border: 0; border-radius: 8px; padding: 6px 9px; font: 600 12px/1 inherit; font-variant-numeric: tabular-nums; cursor: pointer; background: rgb(var(--w) / 0.08); color: var(--muted); }
+.hb.ok { background: rgb(48 209 88 / .18); color: #30d158; } .hb.mid { background: rgb(255 159 10 / .18); color: #ff9f0a; } .hb.bad { background: rgb(255 69 58 / .18); color: #ff453a; }
+.section > .btn { margin-left: auto; margin-right: 10px; }

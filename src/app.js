@@ -47,7 +47,7 @@ const ICON = {
 const glyph = (n) => `<svg viewBox="0 0 24 24">${(window.GLYPHS || {})[n] || (window.GLYPHS || {}).box || ''}</svg>`;
 const colorVars = (a) => `--c1:${a.colors?.[0] || '#ff7a3d'};--c2:${a.colors?.[1] || '#ff2e7e'}`;
 function iconHTML(a, size) {
-  const img = a.icon ? `<img src="${esc(a.icon)}" alt="">` : '';
+  const img = a.icon ? `<img src="${esc(a.icon)}" alt="" loading="lazy" decoding="async">` : '';
   return `<div class="app-icon" style="${size ? `--s:${size}px;` : ''}${colorVars(a)}">${glyph(a.glyph)}${img}</div>`;
 }
 function fmtBytes(b) {
@@ -460,11 +460,8 @@ function profileHTML() {
 }
 
 // ───────────── Verificar o repositório antes de publicar ─────────────
-function checkHTML() {
-  const C = S.publish.check; if (!C) return '';
-  if (C.busy) return '<div class="chk-box"><em>Lendo o repositório no GitHub…</em></div>';
-  if (C.error) return `<div class="pub-msg error">${esc(C.error)}</div>`;
-  const d = C.data, it = [];
+function checkItems(d) {
+  const it = [];
   const add = (ok, good, tip) => it.push({ ok, text: ok ? good : tip });
   add(true, `Release v${d.version} com ${d.file} (${d.type}, ${d.sizeMB} MB)`);
   add(d.sha256, 'SHA-256 publicado: a loja confere o arquivo na instalação', 'Sem SHA-256: a loja não consegue conferir o arquivo. Crie o Release de novo pelo GitHub para ele ser gerado');
@@ -475,6 +472,32 @@ function checkHTML() {
   if (d.type === 'zip') add(!!d.exe, `Executável: ${d.exe}`, 'Executável não informado: a loja vai procurar sozinha. Defina "exe" no helio.json');
   add(!!d.i18nLangs?.length, `Traduções do autor: ${(d.i18nLangs || []).join(', ')}`, 'Sem traduções no helio.json: a loja traduz o texto sozinha para o idioma de cada pessoa (dá para refinar com “i18n” no helio.json)');
   add(d.manifest, 'helio.json encontrado', 'Sem helio.json (opcional): ele escolhe nome, ícone, categoria e executável');
+  return it;
+}
+function healthBadge(h, repo) {
+  const cls = h.err ? 'bad' : h.ok === h.total ? 'ok' : h.ok >= h.total - 2 ? 'mid' : 'bad';
+  return `<button class="hb ${cls}" data-recheck="${esc(repo)}" aria-label="Verificar">${h.err ? '!' : h.ok + '/' + h.total}</button>`;
+}
+async function checkAll() {
+  const P = S.publish, list = S.apps.filter((a) => a.mine && a.source?.repo).map((a) => a.source.repo);
+  if (!list.length || P.healthBusy) return;
+  P.health = P.health || {}; let done = 0;
+  const upd = () => { P.healthBusy = `${done}/${list.length}`; if (S.view === 'publish') renderPublish(); };
+  upd();
+  const q = [...list];
+  const worker = async () => { for (let r; (r = q.shift());) {
+    try { const it = checkItems(await window.helio.github.inspect(repoUrl(r))); P.health[r.toLowerCase()] = { ok: it.filter((x) => x.ok).length, total: it.length }; }
+    catch { P.health[r.toLowerCase()] = { err: true }; }
+    done++; upd();
+  } };
+  await Promise.all([worker(), worker()]);
+  P.healthBusy = ''; if (S.view === 'publish') renderPublish();
+}
+function checkHTML() {
+  const C = S.publish.check; if (!C) return '';
+  if (C.busy) return '<div class="chk-box"><em>Lendo o repositório no GitHub…</em></div>';
+  if (C.error) return `<div class="pub-msg error">${esc(C.error)}</div>`;
+  const d = C.data, it = checkItems(d);
   const okN = it.filter((x) => x.ok).length;
   const prev = { name: d.name, tagline: d.tagline, icon: d.icon, glyph: 'box' };
   return `<div class="chk-box"><div class="chk-h"><b>${esc(d.name)}</b><span>${okN} de ${it.length} itens ok</span></div>
@@ -537,7 +560,7 @@ function renderPublish() {
     return `<div class="row" data-open="${esc(a.id)}">${iconHTML(a, 44)}
       <div class="row-info"><h4>${esc(a.name)}${S.account && repo && repo.split('/')[0].toLowerCase() === S.account.login.toLowerCase() ? '<span class="tag">Seu repositório</span>' : ''}</h4><p>${info.map(esc).join(' · ')}</p></div>
       <div class="row-acts">${repo ? `<button class="btn sq" data-copy="${esc(repoUrl(repo))}" title="Copiar link">${ICON.copy}</button><button class="btn sq" data-ext="${esc(repoUrl(repo))}" title="Abrir no GitHub">${ICON.github}</button>` : ''}
-        ${repo ? `<button class="btn" data-recheck="${esc(repo)}">Verificar</button>` : ''}<button class="btn" data-edit="${esc(a.id)}">Editar</button><button class="btn" data-remove="${esc(a.id)}">Remover</button>${getBtn(a)}</div></div>`;
+        ${repo && P.health?.[repo.toLowerCase()] ? healthBadge(P.health[repo.toLowerCase()], repo) : ''}${repo ? `<button class="btn" data-recheck="${esc(repo)}">Verificar</button>` : ''}<button class="btn" data-edit="${esc(a.id)}">Editar</button><button class="btn" data-remove="${esc(a.id)}">Remover</button>${getBtn(a)}</div></div>`;
   };
   el.innerHTML = `<div class="creator-head"><h1 class="title">Helio Creator</h1><button class="btn" data-guide>${ICON.help} Como funciona</button></div>
     <p class="sub">Cole o link do repositório no GitHub. A loja lê o último Release, instala e mantém o app atualizado sozinha sempre que você publicar uma versão nova.</p>
@@ -570,7 +593,7 @@ function renderPublish() {
       </div>
       <button class="btn" data-copy-manifest>${ICON.copy} Copiar</button> <button class="btn" data-mf-translate ${MF.busy ? 'disabled' : ''}>${MF.busy ? 'Traduzindo…' : 'Traduzir para todos os idiomas'}</button>
       <p class="sub" style="margin:8px 0 0">Gera o bloco “i18n” com a frase curta e a descrição em cada idioma da loja. Revise antes de publicar.</p><pre id="mf-out">${esc(manifestText())}</pre></details>
-    <div class="section"><h2>Seus apps</h2><span>${mine.length}${mine.length ? ' · ★ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.stars || 0), 0)) + ' · ⬇ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.downloads || 0), 0)) : ''}</span></div>
+    <div class="section"><h2>Seus apps</h2>${mine.some((a) => a.source?.repo) ? `<button class="btn" data-check-all ${P.healthBusy ? 'disabled' : ''}>${ICON.refresh} ${P.healthBusy ? esc(P.healthBusy) : 'Verificar todos'}</button>` : ''}<span>${mine.length}${mine.length ? ' · ★ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.stars || 0), 0)) + ' · ⬇ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.downloads || 0), 0)) : ''}</span></div>
     ${mine.length ? `<div class="rows">${mine.map(row).join('')}</div>
       <div class="reg-box"><p>Para aparecer para todo mundo, adicione seus repositórios à lista “repos” do catálogo público.</p><button class="btn" data-copy-registry>${ICON.copy} Copiar lista para o registro público</button></div>`
       : '<div class="empty" style="padding:22px 0;text-align:left">Você ainda não adicionou nenhum app.</div>'}
@@ -721,7 +744,7 @@ function renderSettings() {
     <div class="set-row"><div><h4>Feedback</h4><p>Conte uma ideia ou um problema. Abre uma página do GitHub com a mensagem pronta.</p></div><div class="ctl"><button class="btn" data-feedback>Enviar feedback</button><button class="btn" id="open-news">Novidades</button></div></div>
     <div class="set-row"><div><h4>Traduzir os textos dos apps</h4><p>Traduz automaticamente a descrição e as novidades dos apps para o idioma da loja. Usa o serviço gratuito MyMemory e envia só o texto público do app.</p></div>${tg('autoTranslate')}</div>
     <div class="set-row"><div><h4>Idioma</h4><p>Idioma da interface.</p></div>
-      <select class="sel" id="set-lang" aria-label="Idioma">${[['auto', 'Automático'], ['pt', 'Português'], ['en', 'English'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['ja', '日本語'], ['zh', '中文'], ['ru', 'Русский']].map(([k, l]) => `<option value="${k}" ${(s.lang || 'auto') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <select class="sel" id="set-lang" aria-label="Idioma">${[['auto', 'Automático'], ['pt', 'Português'], ['en', 'English'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['ja', '日本語'], ['zh', '中文'], ['ru', 'Русский'], ['hi', 'हिन्दी']].map(([k, l]) => `<option value="${k}" ${(s.lang || 'auto') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     <div class="set-row"><div><h4>Aparência</h4><p>Escuro, claro ou igual ao Windows.</p></div>
       <div class="seg">${[['dark', 'Escuro'], ['light', 'Claro'], ['auto', 'Sistema']].map(([k, l]) => `<button class="seg-b ${(s.theme || 'dark') === k ? 'on' : ''}" data-theme-set="${k}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><div><h4>Tamanho do dock</h4><p>Barra de apps que aparece na tela quando a loja vai para o segundo plano.</p></div>
@@ -749,7 +772,7 @@ function openDetail(id) {
     ${shortcutsRow(a, inst)}
     <div class="d-info"><div><span>Categoria</span><b>${esc(a.category || '—')}</b></div><div><span>Tamanho</span><b>${a.sizeMB ? a.sizeMB + ' MB' : '—'}</b></div><div><span>Versão</span><b>${esc(a.version)}</b></div></div>
     ${trustNote(a)}${metaRows(a)}
-    ${a.screenshots?.length ? `<h3>Capturas</h3><div class="shots">${a.screenshots.map((u) => `<img src="${esc(u)}" alt="">`).join('')}</div>` : ''}
+    ${a.screenshots?.length ? `<h3>Capturas</h3><div class="shots">${a.screenshots.map((u) => `<img src="${esc(u)}" alt="" loading="lazy" decoding="async">`).join('')}</div>` : ''}
     <h3>Sobre</h3><div class="txt">${esc(tx(a, 'description') || tx(a, 'tagline'))}</div>
     ${a.features?.length ? `<h3>Destaques</h3><ul>${txFeatures(a).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
     ${a.changelog ? `<h3>Novidades da v${esc(a.version)}</h3><div class="txt">${esc(tx(a, 'changelog'))}</div>` : ''}
@@ -963,7 +986,7 @@ document.addEventListener('click', async (e) => {
     if (!src.tagline && !src.description) return toast('Escreva a frase curta ou a descrição', 'Preencha os campos acima para traduzir.');
     MF.busy = true; MF.i18n = {}; const btn = t('[data-mf-translate]'); btn.disabled = true; btn.textContent = I18N.t('Traduzindo…');
     try {
-      for (const l of ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru']) {
+      for (const l of ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru', 'hi']) {
         const out = await window.helio.translate(l, [src.tagline, src.description]), o = {};
         if (src.tagline && out[0] && out[0] !== src.tagline) o.tagline = out[0];
         if (src.description && out[1] && out[1] !== src.description) o.description = out[1];
@@ -975,6 +998,7 @@ document.addEventListener('click', async (e) => {
     return renderPublish();
   }
   if ((el = t('[data-spot]'))) { S.spot = +el.dataset.spot; updateSpot(true); return; }
+  if (t('[data-check-all]')) return checkAll();
   if ((el = t('[data-recheck]'))) {
     const link = repoUrl(el.dataset.recheck); S.publish.input = link; S.publish.check = { busy: true }; renderPublish();
     $('#view-publish')?.scrollTo?.({ top: 0, behavior: 'smooth' }); window.scrollTo?.({ top: 0, behavior: 'smooth' });

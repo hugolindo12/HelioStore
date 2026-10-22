@@ -356,10 +356,32 @@ const MT = {
     "Helio Store {0} disponível": "Доступна Helio Store {0}",
     "Abra a loja e clique em Atualizar agora.": "Откройте магазин и нажмите «Обновить сейчас».",
   },
+  hi: {
+    "Abrir Helio Store": "Helio Store खोलें",
+    "Sair da Helio Store": "Helio Store से बाहर निकलें",
+    "Sair": "बाहर निकलें",
+    "Meus aplicativos": "मेरे ऐप्स",
+    "Ir para o app": "ऐप पर जाएँ",
+    "Abrir": "खोलें",
+    "Encerrar": "ऐप बंद करें",
+    "Mostrar pasta do app": "ऐप का फ़ोल्डर दिखाएँ",
+    "Helio Store continua aberta": "Helio Store चल रहा है",
+    "Ela segue rodando em segundo plano. Clique no ícone da bandeja para abrir de novo.": "यह बैकग्राउंड में चलता रहता है। दोबारा खोलने के लिए ट्रे के आइकन पर क्लिक करें।",
+    "Atualização disponível: {0}": "अपडेट उपलब्ध: {0}",
+    "{0} atualizações disponíveis": "{0} अपडेट उपलब्ध हैं",
+    "{0}. Abra a Helio Store para atualizar.": "{0}। अपडेट करने के लिए Helio Store खोलें।",
+    "{0} atualizado": "{0} अपडेट हुआ",
+    "{0} apps atualizados": "{0} ऐप्स अपडेट हुए",
+    "{0} agora está na versão mais recente.": "{0} अब नवीनतम संस्करण पर है।",
+    "{0} instalado": "{0} इंस्टॉल हुआ",
+    "Versão {0} pronta para abrir.": "संस्करण {0} खोलने के लिए तैयार है।",
+    "Helio Store {0} disponível": "Helio Store {0} उपलब्ध है",
+    "Abra a loja e clique em Atualizar agora.": "स्टोर खोलें और “अभी अपडेट करें” पर क्लिक करें।",
+  },
 };
 function uiLang() {
   const p = state?.settings?.lang;
-  const SUP = ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru'];
+  const SUP = ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru', 'hi'];
   if (SUP.includes(p)) return p;
   const l = String(app.getLocale() || 'pt').toLowerCase();
   return SUP.find((c) => l === c || l.startsWith(c + '-')) || 'en'; // idioma não suportado: inglês
@@ -1198,7 +1220,7 @@ app.whenReady().then(() => {
   let trSave = null;
   const trPersist = () => { clearTimeout(trSave); trSave = setTimeout(() => { try { const e = [...trCache].slice(-3000); fs.writeFileSync(trPath(), JSON.stringify(Object.fromEntries(e))); } catch {} }, 2000); };
   ipcMain.handle('i18n:translate', async (_, lang, texts) => {
-    if (!['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru'].includes(lang) || !Array.isArray(texts)) return [];
+    if (!['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru', 'hi'].includes(lang) || !Array.isArray(texts)) return [];
     const list = texts.slice(0, 40).map((t) => (typeof t === 'string' ? t.slice(0, 4000) : ''));
     if (state.settings.autoTranslate === false) return list.map((t) => trCache.get(`${lang}|${t.trim()}`) || t);
     const before = trCache.size;

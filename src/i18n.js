@@ -261,9 +261,10 @@
       "Atualizar os apps automaticamente": "Update apps automatically",
   "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Downloads and installs new versions of your apps as soon as they are found.",
       "Avalie os apps com estrelas ao enviar feedback.": "Rate apps with stars when you send feedback.",
+      "Verificar todos": "Check all",
       "Destaque da página inicial que alterna entre os apps mais baixados.": "Home page spotlight that rotates between the most downloaded apps.",
       "Textos dos apps traduzidos automaticamente para o seu idioma.": "App texts are automatically translated into your language.",
-      "Novos idiomas: francês, alemão, italiano, japonês, chinês e russo.": "New languages: French, German, Italian, Japanese, Chinese and Russian.",
+      "Novos idiomas: francês, alemão, italiano, japonês, chinês, russo e hindi.": "New languages: French, German, Italian, Japanese, Chinese, Russian and Hindi.",
   "Ao atualizar um app, a loja mostra o resumo do que mudou.": "When an app updates, the store shows a summary of what changed.",
   "Novidades e Feedback na loja.": "What's new and Feedback inside the store.",
   "Versão {0}": "Version {0}",
@@ -557,9 +558,10 @@
       "Atualizar os apps automaticamente": "Actualizar las apps automáticamente",
   "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Descarga e instala las versiones nuevas de tus apps en cuanto se encuentran.",
       "Avalie os apps com estrelas ao enviar feedback.": "Valora las apps con estrellas al enviar feedback.",
+      "Verificar todos": "Verificar todos",
       "Destaque da página inicial que alterna entre os apps mais baixados.": "Destacado de la página de inicio que rota entre las apps más descargadas.",
       "Textos dos apps traduzidos automaticamente para o seu idioma.": "Los textos de las apps se traducen automáticamente a tu idioma.",
-      "Novos idiomas: francês, alemão, italiano, japonês, chinês e russo.": "Nuevos idiomas: francés, alemán, italiano, japonés, chino y ruso.",
+      "Novos idiomas: francês, alemão, italiano, japonês, chinês, russo e hindi.": "Nuevos idiomas: francés, alemán, italiano, japonés, chino, ruso e hindi.",
   "Ao atualizar um app, a loja mostra o resumo do que mudou.": "Al actualizar una app, la tienda muestra un resumen de lo que cambió.",
   "Novidades e Feedback na loja.": "Novedades y Feedback dentro de la tienda.",
   "Versão {0}": "Versión {0}",
@@ -601,7 +603,7 @@
   };
 
   Object.assign(D, window.I18N_EXTRA || {}); // idiomas extras (src/lang/*.js)
-  const LOCALES = { pt: 'pt-BR', en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', ja: 'ja-JP', zh: 'zh-CN', ru: 'ru-RU' };
+  const LOCALES = { pt: 'pt-BR', en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', ja: 'ja-JP', zh: 'zh-CN', ru: 'ru-RU', hi: 'hi-IN' };
   const SUPPORTED = Object.keys(LOCALES);
   const escRe = (s) => s.replace(/[.*+?^$()|[\]\\]/g, '\\$&');
   const compiled = {};
