@@ -1,0 +1,29 @@
+# ENGAVETADO: gera a versão portátil (um único .exe, sem instalar) só quando você pedir, em Actions → Portable → Run workflow.
+# Não é publicada em Releases: o arquivo fica como "artifact" da execução (guardado por 14 dias).
+name: Portable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:portable
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HelioStore-Portatil
+          path: dist/HelioStore-Portatil-*.exe
+          retention-days: 14

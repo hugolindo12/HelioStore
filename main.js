@@ -10,6 +10,9 @@ const gh = require('./github');
 const tr = require('./translate');
 
 const isDev = process.argv.includes('--dev');
+// Versão portátil (electron-builder "portable"): os dados ficam numa pasta ao lado do .exe, nada é instalado
+const PORTABLE_DIR = process.env.PORTABLE_EXECUTABLE_DIR || '';
+if (PORTABLE_DIR) { try { app.setPath('userData', path.join(PORTABLE_DIR, 'HelioStoreDados')); } catch {} }
 const SMOKE = process.argv.includes('--smoke-test'); // teste automático (CI): abre a loja, confere e fecha
 if (SMOKE) { try { app.setPath('userData', fs.mkdtempSync(path.join(require('os').tmpdir(), 'helio-smoke-'))); } catch {} }
 const launchArgOf = (argv) => { const a = (argv || []).find((x) => String(x).startsWith('--launch=')); return a ? a.slice(9) : null; };
@@ -693,7 +696,7 @@ async function checkSelfUpdate(manual) {
     const rel = await gh.fetchRelease(p.owner, p.repo, state.settings.githubToken, { pre: false }); // a loja só se atualiza para versões estáveis
     const tag = rel && String(rel.tag_name).replace(/^v/i, '');
     if (!rel || !vNewer(tag, app.getVersion())) return setSelf({ status: manual ? 'uptodate' : 'idle', version: '', notes: '', error: '' });
-    const exes = (rel.assets || []).filter((a) => /\.exe$/i.test(a.name) && !/blockmap|uninstall/i.test(a.name));
+    const exes = (rel.assets || []).filter((a) => /\.exe$/i.test(a.name) && !/blockmap|uninstall|portable|portatil/i.test(a.name));
     // Se o Release tiver mais de um instalador (ex.: sobrou o de uma versão antiga), usa o da versão da tag; senão o de maior versão
     const verOf = (n) => ((/(\d+)\.(\d+)\.(\d+)/.exec(n) || []).slice(1).map(Number));
     const cmpV = (x, y) => { for (let i = 0; i < 3; i++) { const d = (y[i] || 0) - (x[i] || 0); if (d) return d; } return 0; };
@@ -705,7 +708,7 @@ async function checkSelfUpdate(manual) {
     const res = setSelf({ status: 'available', version: tag, url: String(rel.html_url || ''), notes: String(rel.body || '').slice(0, 1500), error: '' });
     // Atualização automática: só quando a loja está em segundo plano (janela escondida), uma tentativa por versão
     const hidden = !win || win.isDestroyed() || !win.isVisible();
-    if (state.settings.autoUpdateSelf !== false && app.isPackaged && hidden && selfAutoTried !== tag) {
+    if (state.settings.autoUpdateSelf !== false && app.isPackaged && !PORTABLE_DIR && hidden && selfAutoTried !== tag) {
       selfAutoTried = tag;
       installSelfUpdate().catch(() => {});
     }
@@ -715,6 +718,7 @@ async function checkSelfUpdate(manual) {
   }
 }
 async function installSelfUpdate() {
+  if (PORTABLE_DIR) { shell.openExternal(selfUpd.url || `https://github.com/${selfRepoName()}/releases/latest`).catch(() => {}); return selfUpd; } // portátil: não roda instalador, só abre a página para baixar a nova versão
   if (!app.isPackaged) throw new Error('A atualização da loja só funciona na versão instalada (não com npm start).');
   if (selfUpd.status !== 'available' || !selfAsset) await checkSelfUpdate(true);
   if (selfUpd.status !== 'available' || !selfAsset) throw new Error(selfUpd.error || 'Nenhuma atualização disponível.');

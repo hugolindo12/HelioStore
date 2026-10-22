@@ -11,7 +11,8 @@
     "dev": "electron . --dev",
     "dist": "electron-builder --win --publish never",
     "i18n": "node scripts/i18n-check.js",
-    "test": "node tests/smoke.js"
+    "test": "node tests/smoke.js",
+    "dist:portable": "electron-builder --win portable --publish never"
   },
   "build": {
     "appId": "com.helio.store",
@@ -50,6 +51,9 @@
         "zh_CN",
         "ru_RU"
       ]
+    },
+    "portable": {
+      "artifactName": "HelioStore-Portatil-${version}.exe"
     }
   },
   "devDependencies": {
