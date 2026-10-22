@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https:; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'" />
+  <title>Helio Store</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Degradê do sol (usado pela janela e pelo dock flutuante) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd166" /><stop offset=".5" stop-color="#ff7a3d" /><stop offset="1" stop-color="#ff2e7e" />
+    </linearGradient>
+  </defs></svg>
+
+  <div class="app">
+    <header class="top">
+      <div class="top-left">
+        <div class="tl">
+          <button class="tl-btn tl-close" data-win="close" title="Fechar"></button>
+          <button class="tl-btn tl-min" data-win="minimize" title="Minimizar"></button>
+          <button class="tl-btn tl-max" data-win="maximize" title="Tela cheia"></button>
+        </div>
+        <div class="brand">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="10" fill="url(#lg)" /><g stroke="url(#lg)" stroke-width="3.2" stroke-linecap="round"><path d="M24 3v6M24 39v6M3 24h6M39 24h6M9.2 9.2l4.2 4.2M34.6 34.6l4.2 4.2M9.2 38.8l4.2-4.2M34.6 13.4l4.2-4.2" /></g></svg>
+          <span>Helio Store</span>
+        </div>
+      </div>
+
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="discover">Explorar</button>
+        <button class="tab" data-view="library">Biblioteca<span class="badge" id="badge-lib" hidden></span></button>
+        <button class="tab" data-view="publish">Helio Creator</button>
+      </nav>
+
+      <div class="top-right">
+        <label class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input id="search" type="text" placeholder="Buscar" autocomplete="off" spellcheck="false" />
+          <kbd>Ctrl K</kbd>
+        </label>
+        <button class="icon-btn" data-view="settings" title="Ajustes" id="btn-settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="self-banner" class="self-banner" hidden></div>
+    <main class="content" id="content">
+      <section class="view" id="view-discover"><div class="grid skel"><div class="card"><i class="sk-ic"></i><div class="sk-tx"><b></b><b></b></div></div><div class="card"><i class="sk-ic"></i><div class="sk-tx"><b></b><b></b></div></div><div class="card"><i class="sk-ic"></i><div class="sk-tx"><b></b><b></b></div></div><div class="card"><i class="sk-ic"></i><div class="sk-tx"><b></b><b></b></div></div><div class="card"><i class="sk-ic"></i><div class="sk-tx"><b></b><b></b></div></div><div class="card"><i class="sk-ic"></i><div class="sk-tx"><b></b><b></b></div></div></div></section>
+      <section class="view" id="view-library"></section>
+      <section class="view" id="view-publish"></section>
+      <section class="view" id="view-settings"></section>
+    </main>
+  </div>
+
+  <!-- Dock estilo macOS -->
+  <footer class="mac-dock-container">
+    <div class="mac-dock" id="mac-dock">
+      <div class="dock-app" data-dock-action="discover" data-name="Helio Store">
+        <div class="dock-icon-box store-dock-icon">
+          <svg viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="11" fill="url(#lg)" />
+            <g stroke="url(#lg)" stroke-width="3" stroke-linecap="round"><path d="M24 4v5M24 39v5M4 24h5M39 24h5M9.9 9.9l3.5 3.5M34.6 34.6l3.5 3.5M9.9 38.1l3.5-3.5M34.6 13.4l3.5-3.5" /></g>
+          </svg>
+        </div>
+        <div class="dock-dot active"></div>
+      </div>
+      <div class="dock-divider"></div>
+      <div class="dock-installed-apps" id="dock-installed-apps"></div>
+    </div>
+    <div class="dock-tooltip" id="dock-tooltip"></div>
+  </footer>
+
+  <div class="drawer" id="detail" aria-hidden="true">
+    <div class="drawer-scrim" data-close></div>
+    <article class="drawer-panel" id="detail-panel"></article>
+  </div>
+
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modal-scrim" data-modal-close></div>
+    <div class="modal-card" id="modal-card"></div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <script src="icons.js"></script>
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

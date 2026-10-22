@@ -1,0 +1,76 @@
+{
+  "$comment": "Catálogo da Helio Store. Apps com o campo \"repo\" (usuario/repositorio) se atualizam sozinhos pelo último Release do GitHub. \"env\" define variáveis de ambiente ao abrir o app (só vale neste catálogo local). \"repos\": [...] aceita uma lista de links de apps da comunidade.",
+  "featured": [
+    "hl-cad",
+    "solidcraft-hl"
+  ],
+  "apps": [
+    {
+      "id": "solidcraft-hl",
+      "name": "SolidCraft HL",
+      "tagline": "CAD 3D profissional em Rust com kernel B-Rep.",
+      "description": "Software avançado de modelagem sólida e paramétrica em Rust, com suporte a DirectX 12 e kernel geométrico preciso. Interface moderna, ultra-rápida e nativa para Windows.",
+      "category": "Produtividade",
+      "developer": "Helio Labs",
+      "version": "0.15.0",
+      "sizeMB": 34,
+      "rating": 5,
+      "glyph": "bolt",
+      "colors": [
+        "#ff7a3d",
+        "#ffd166"
+      ],
+      "features": [
+        "Modelagem 3D sólida e paramétrica",
+        "Kernel B-Rep de alta precisão",
+        "Aceleração por hardware DirectX 12",
+        "Desenvolvido em Rust puro"
+      ],
+      "changelog": "Versão 0.15.0 portada com aceleração DirectX 12 para a Helio Store.",
+      "download": {
+        "url": "https://github.com/hugolindo12/SolidcraftHL/releases/download/v0.15.0/SolidcraftHL-windows-x64.zip",
+        "type": "zip",
+        "exe": "solidcraft.exe"
+      },
+      "repo": "hugolindo12/SolidcraftHL",
+      "env": {
+        "WGPU_BACKEND": "dx12",
+        "SOLIDCRAFT_GPU": "hardware"
+      }
+    },
+    {
+      "id": "hl-cad",
+      "name": "HLCAD (CADCraft)",
+      "tagline": "Modelagem 3D paramétrica e desenho técnico.",
+      "description": "Software avançado de CAD construído em Rust. Leve, de altíssima performance, com suporte a desenho 2D/3D paramétrico, atalhos fluidos e renderização acelerada por GPU.",
+      "category": "Produtividade",
+      "developer": "Helio Labs",
+      "version": "1.0.0",
+      "sizeMB": 28,
+      "rating": 5,
+      "glyph": "box",
+      "colors": [
+        "#00d4ff",
+        "#1e7bff"
+      ],
+      "features": [
+        "Modelagem 3D paramétrica rápida",
+        "Engine em Rust nativa de alta velocidade",
+        "Suporte a linha de comando e interface gráfica",
+        "Instalação portátil sem dependências"
+      ],
+      "changelog": "Versão 1.0.0 oficial empacotada para a Helio Store.",
+      "download": {
+        "url": "https://github.com/hugolindo12/CADCraftHL/releases/download/v1.0.0/HLcad-windows-x64.zip",
+        "type": "zip",
+        "exe": "cadcraft.exe"
+      },
+      "repo": "hugolindo12/CADCraftHL",
+      "env": {
+        "WGPU_BACKEND": "dx12",
+        "SOLIDCRAFT_GPU": "hardware"
+      }
+    }
+  ],
+  "repos": []
+}

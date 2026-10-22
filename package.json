@@ -1,0 +1,51 @@
+{
+  "name": "helio-store",
+  "productName": "Helio Store",
+  "version": "2.0.0",
+  "description": "Helio Store — a loja para instalar os seus aplicativos.",
+  "main": "main.js",
+  "author": "Helio",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dist": "electron-builder --win --publish never"
+  },
+  "build": {
+    "appId": "com.helio.store",
+    "productName": "Helio Store",
+    "files": [
+      "main.js",
+      "preload.js",
+      "github.js",
+      "src/**/*",
+      "catalog/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "artifactName": "HelioStore-Setup-${version}.exe",
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hugolindo12/HelioStore.git"
+  },
+  "homepage": "https://github.com/hugolindo12/HelioStore#readme",
+  "bugs": {
+    "url": "https://github.com/hugolindo12/HelioStore/issues"
+  },
+  "keywords": [
+    "electron",
+    "app-store",
+    "windows",
+    "github-releases"
+  ]
+}

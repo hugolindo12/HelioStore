@@ -1,0 +1,12 @@
+node_modules/
+dist/
+out/
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+# cópias de segurança locais
+_backup_*/
+.env
+.env.*
