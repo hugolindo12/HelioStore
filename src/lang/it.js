@@ -387,6 +387,7 @@ window.I18N_EXTRA.it = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Scarica e installa le nuove versioni delle tue app non appena vengono trovate.",
  "Avalie os apps com estrelas ao enviar feedback.": "Valuta le app con le stelle quando invii un feedback.",
  "Verificar todos": "Verifica tutti",
+ "Modo compacto": "Modalità compatta",
  "Pré-visualizar": "Anteprima",
  "Pré-visualização": "Anteprima",
  "Assim a página do app aparece na loja.": "Ecco come appare la pagina dell'app nello store.",

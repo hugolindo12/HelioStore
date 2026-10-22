@@ -387,6 +387,7 @@ window.I18N_EXTRA.ja = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "アプリの新しいバージョンが見つかり次第、ダウンロードしてインストールします。",
  "Avalie os apps com estrelas ao enviar feedback.": "フィードバックの送信時に、アプリをスターで評価できます。",
  "Verificar todos": "すべて確認",
+ "Modo compacto": "コンパクト表示",
  "Pré-visualizar": "プレビュー",
  "Pré-visualização": "プレビュー",
  "Assim a página do app aparece na loja.": "ストアでのアプリページの表示イメージです。",

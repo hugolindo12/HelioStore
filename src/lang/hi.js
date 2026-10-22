@@ -387,6 +387,7 @@ window.I18N_EXTRA.hi = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "आपके ऐप्स के नए संस्करण मिलते ही डाउनलोड और इंस्टॉल कर लेता है।",
  "Avalie os apps com estrelas ao enviar feedback.": "फ़ीडबैक भेजते समय ऐप्स को स्टार से रेट करें।",
  "Verificar todos": "सभी जाँचें",
+ "Modo compacto": "कॉम्पैक्ट मोड",
  "Pré-visualizar": "पूर्वावलोकन",
  "Pré-visualização": "पूर्वावलोकन",
  "Assim a página do app aparece na loja.": "स्टोर में ऐप का पेज ऐसा दिखेगा।",

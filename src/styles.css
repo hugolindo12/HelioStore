@@ -551,3 +551,7 @@ html[data-theme="light"] .chk.c-ok i { color: #1a9a3c; } html[data-theme="light"
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 #set-gid, #set-gsecret { width: 190px; } .set-row .ctl { flex-wrap: wrap; justify-content: flex-end; }
 .chk-act{display:flex;justify-content:flex-end;margin:8px 0 4px}
+#view-library.compact .row{padding-top:6px;padding-bottom:6px;min-height:0}
+#view-library.compact .row-info p,#view-library.compact .row-info .row-note{display:none}
+#view-library.compact .app-icon{--s:30px !important}
+#lib-compact.on{background:var(--accent,#7b3dff);color:#fff}

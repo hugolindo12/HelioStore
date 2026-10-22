@@ -387,6 +387,7 @@ window.I18N_EXTRA.ru = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Загружает и устанавливает новые версии ваших приложений, как только они найдены.",
  "Avalie os apps com estrelas ao enviar feedback.": "Оценивайте приложения звёздами при отправке отзыва.",
  "Verificar todos": "Проверить все",
+ "Modo compacto": "Компактный режим",
  "Pré-visualizar": "Просмотр",
  "Pré-visualização": "Предпросмотр",
  "Assim a página do app aparece na loja.": "Так страница приложения выглядит в магазине.",

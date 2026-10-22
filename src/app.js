@@ -122,7 +122,30 @@ function updateCounters() {
 }
 
 // ───────────── Explorar ─────────────
-const matches = (a, q) => [a.name, a.tagline, a.category, a.developer].some((t) => String(t || '').toLowerCase().includes(q));
+// Busca: ignora acentos e maiúsculas, aceita várias palavras e um errinho de digitação, e ordena pelo que mais combina
+const fold = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const near = (a, b) => { // distância de edição <= 1
+  if (a === b) return true; if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return a.slice(i + 1) === b.slice(i + 1) || a.slice(i) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i);
+};
+function searchScore(a, q) {
+  const toks = fold(q).split(/\s+/).filter(Boolean); if (!toks.length) return 0;
+  const name = fold(a.name), fields = [[name, 10], [fold(a.tagline), 4], [fold(a.category), 4], [fold(a.developer), 3], [fold(a.source?.repo), 3], [fold(a.description), 1]];
+  let total = 0;
+  for (const t of toks) {
+    let best = 0;
+    for (const [f, w] of fields) {
+      if (!f) continue;
+      if (f.includes(t)) best = Math.max(best, w + (f.startsWith(t) ? 2 : 0));
+      else if (t.length >= 4 && f.split(/[^a-z0-9]+/).some((x) => x.length >= 3 && near(x, t))) best = Math.max(best, w / 2);
+    }
+    if (!best) return 0; // toda palavra digitada precisa aparecer em algum lugar
+    total += best;
+  }
+  return total;
+}
+const searchApps = (list, q) => list.map((a) => [a, searchScore(a, q)]).filter((x) => x[1] > 0).sort((x, y) => y[1] - x[1]).map((x) => x[0]);
 
 function card(a) {
   const meta = [a.category, a.sizeMB ? `${a.sizeMB} MB` : null].filter(Boolean).join(' · ');
@@ -187,7 +210,7 @@ function renderDiscover() {
   if (!S.apps.length) { el.innerHTML = '<div class="empty"><strong>Nenhum app ainda</strong>Adicione o primeiro no Helio Creator.</div>'; return; }
 
   if (q) {
-    const res = S.apps.filter((a) => matches(a, q));
+    const res = searchApps(S.apps, q);
     el.innerHTML = `<h1 class="title">Resultados</h1><p class="sub">${res.length} ${res.length === 1 ? 'app encontrado' : 'apps encontrados'} para “${esc(S.query.trim())}”</p>` + // i18n-ignore
       (res.length ? `<div class="grid">${res.map(card).join('')}</div>` : '<div class="empty"><strong>Nada encontrado</strong>Tente outra palavra.</div>');
     return;
@@ -261,13 +284,13 @@ function renderLibrary() {
       <button class="btn sq danger" data-uninstall="${esc(id)}" title="Desinstalar">${ICON.trash}</button>${getBtn(a)}</div></div>`; };
 
   let html = '<h1 class="title">Biblioteca</h1><p class="sub">Seus apps instalados, downloads em andamento e atualizações.</p>' +
-    `<div class="lib-check"><button class="btn" id="lib-check" ${S.checking ? 'disabled' : ''}>${ICON.refresh} ${S.checking ? 'Verificando…' : 'Verificar atualizações'}</button><span>${S.lastCheck ? 'Última verificação às ' + S.lastCheck.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit' }) : 'A loja verifica sozinha a cada 30 minutos.'}</span><span class="grow"></span><button class="btn" data-lib-export>${ICON.copy} Exportar lista</button><button class="btn" data-lib-import>Importar lista</button></div>`;
+    `<div class="lib-check"><button class="btn${S.settings.compactLib ? ' on' : ''}" id="lib-compact" aria-pressed="${!!S.settings.compactLib}">Modo compacto</button><button class="btn" id="lib-check" ${S.checking ? 'disabled' : ''}>${ICON.refresh} ${S.checking ? 'Verificando…' : 'Verificar atualizações'}</button><span>${S.lastCheck ? 'Última verificação às ' + S.lastCheck.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit' }) : 'A loja verifica sozinha a cada 30 minutos.'}</span><span class="grow"></span><button class="btn" data-lib-export>${ICON.copy} Exportar lista</button><button class="btn" data-lib-import>Importar lista</button></div>`;
   if (jobs.length) html += `<div class="section"><h2>Baixando</h2></div><div class="rows">${jobs.map(jobRow).join('')}</div>`;
   if (ups.length) html += `<div class="section"><h2>Atualizações</h2><button class="btn" id="update-all">${ICON.refresh} Atualizar tudo</button></div><div class="rows">${ups.map(instRow).join('')}</div>`;
   const rest = ids.filter((id) => !ups.includes(id) && !S.jobs[id]);
   if (rest.length) html += `<div class="section"><h2>Instalados</h2><span>${rest.length}</span></div><div class="rows">${rest.map(instRow).join('')}</div>`;
   if (!jobs.length && !ids.length) html += '<div class="empty"><strong>Biblioteca vazia</strong>Os apps que você instalar aparecem aqui e no dock.</div>';
-  el.innerHTML = html;
+  el.innerHTML = html; el.classList.toggle('compact', !!S.settings.compactLib);
 }
 const jobText = (j) => (j.phase === 'queued' ? 'Na fila…' : j.phase === 'installing' ? 'Instalando…' : `${j.percent >= 0 ? j.percent + '% · ' : ''}${fmtBytes(j.received)}${j.total ? ' de ' + fmtBytes(j.total) : ''} · ${fmtBytes(j.speed)}/s`);
 function updateJobRow(id) {
@@ -1275,6 +1298,7 @@ document.addEventListener('click', async (e) => {
     try { S.settings = (await window.helio.state()).settings; } catch {}
     toast('Sessão encerrada', 'Entre de novo para usar o Helio Creator.'); return renderPublish();
   }
+  if (t('#lib-compact')) { const st = await window.helio.settings.set({ compactLib: !S.settings.compactLib }); S.settings = st; return renderLibrary(); }
   if (t('[data-diag]')) return openDiag();
   if (t('[data-diag-report]')) return reportStore();
   if (t('[data-pub-preview]')) return openPreview();

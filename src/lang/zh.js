@@ -387,6 +387,7 @@ window.I18N_EXTRA.zh = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "一旦发现应用的新版本，就自动下载并安装。",
  "Avalie os apps com estrelas ao enviar feedback.": "发送反馈时可以用星标为应用评分。",
  "Verificar todos": "全部检查",
+ "Modo compacto": "紧凑模式",
  "Pré-visualizar": "预览",
  "Pré-visualização": "预览",
  "Assim a página do app aparece na loja.": "这是应用页面在商店中的显示效果。",
