@@ -7,6 +7,7 @@ const http = require('http');
 const https = require('https');
 const { spawn, execFile } = require('child_process');
 const gh = require('./github');
+const tr = require('./translate');
 
 const isDev = process.argv.includes('--dev');
 const launchArgOf = (argv) => { const a = (argv || []).find((x) => String(x).startsWith('--launch=')); return a ? a.slice(9) : null; };
@@ -49,6 +50,7 @@ const defaultState = () => ({
     dockClassic: false,
     lang: 'auto',           // idioma da interface (auto = do sistema)
     autoStart: false,       // iniciar com o Windows, em segundo plano
+    autoTranslate: true,    // traduzir textos dos apps (descrição etc.) para o idioma da interface
     autoUpdateApps: false,  // atualizar sozinho os apps instalados (.zip)
     notify: true,           // notificações do Windows
     catalogUrl: '',
@@ -222,16 +224,148 @@ const MT = {
     '{0} atualizado': '{0} actualizada', '{0} apps atualizados': '{0} apps actualizadas', '{0} agora está na versão mais recente.': '{0} ya está en la última versión.',
     '{0} instalado': '{0} instalada', 'Versão {0} pronta para abrir.': 'Versión {0} lista para abrir.',
     'Helio Store {0} disponível': 'Helio Store {0} disponible', 'Abra a loja e clique em Atualizar agora.': 'Abre la tienda y haz clic en Actualizar ahora.',
+  },  fr: {
+    "Abrir Helio Store": "Ouvrir Helio Store",
+    "Sair da Helio Store": "Quitter Helio Store",
+    "Sair": "Quitter",
+    "Meus aplicativos": "Mes applis",
+    "Ir para o app": "Aller à l’appli",
+    "Abrir": "Ouvrir",
+    "Encerrar": "Quitter l’appli",
+    "Mostrar pasta do app": "Afficher le dossier de l’appli",
+    "Helio Store continua aberta": "Helio Store est toujours ouverte",
+    "Ela segue rodando em segundo plano. Clique no ícone da bandeja para abrir de novo.": "Elle continue de fonctionner en arrière-plan. Cliquez sur l’icône de la barre d’état pour la rouvrir.",
+    "Atualização disponível: {0}": "Mise à jour disponible : {0}",
+    "{0} atualizações disponíveis": "{0} mises à jour disponibles",
+    "{0}. Abra a Helio Store para atualizar.": "{0}. Ouvrez Helio Store pour mettre à jour.",
+    "{0} atualizado": "{0} mise à jour",
+    "{0} apps atualizados": "{0} applis mises à jour",
+    "{0} agora está na versão mais recente.": "{0} est maintenant à la dernière version.",
+    "{0} instalado": "{0} installée",
+    "Versão {0} pronta para abrir.": "La version {0} est prête à être ouverte.",
+    "Helio Store {0} disponível": "Helio Store {0} disponible",
+    "Abra a loja e clique em Atualizar agora.": "Ouvrez la boutique et cliquez sur Mettre à jour maintenant.",
+  },
+  de: {
+    "Abrir Helio Store": "Helio Store öffnen",
+    "Sair da Helio Store": "Helio Store beenden",
+    "Sair": "Beenden",
+    "Meus aplicativos": "Meine Apps",
+    "Ir para o app": "Zur App",
+    "Abrir": "Öffnen",
+    "Encerrar": "App beenden",
+    "Mostrar pasta do app": "App-Ordner anzeigen",
+    "Helio Store continua aberta": "Helio Store läuft weiter",
+    "Ela segue rodando em segundo plano. Clique no ícone da bandeja para abrir de novo.": "Sie läuft im Hintergrund weiter. Klicken Sie auf das Symbol im Infobereich, um sie wieder zu öffnen.",
+    "Atualização disponível: {0}": "Update verfügbar: {0}",
+    "{0} atualizações disponíveis": "{0} Updates verfügbar",
+    "{0}. Abra a Helio Store para atualizar.": "{0}. Öffnen Sie Helio Store zum Aktualisieren.",
+    "{0} atualizado": "{0} aktualisiert",
+    "{0} apps atualizados": "{0} Apps aktualisiert",
+    "{0} agora está na versão mais recente.": "{0} ist jetzt auf dem neuesten Stand.",
+    "{0} instalado": "{0} installiert",
+    "Versão {0} pronta para abrir.": "Version {0} ist bereit zum Öffnen.",
+    "Helio Store {0} disponível": "Helio Store {0} verfügbar",
+    "Abra a loja e clique em Atualizar agora.": "Öffnen Sie den Store und klicken Sie auf „Jetzt aktualisieren“.",
+  },
+  it: {
+    "Abrir Helio Store": "Apri Helio Store",
+    "Sair da Helio Store": "Esci da Helio Store",
+    "Sair": "Esci",
+    "Meus aplicativos": "Le mie app",
+    "Ir para o app": "Vai all’app",
+    "Abrir": "Apri",
+    "Encerrar": "Chiudi l’app",
+    "Mostrar pasta do app": "Mostra la cartella dell’app",
+    "Helio Store continua aberta": "Helio Store è ancora attivo",
+    "Ela segue rodando em segundo plano. Clique no ícone da bandeja para abrir de novo.": "Continua a funzionare in secondo piano. Clicca sull’icona nell’area di notifica per riaprirlo.",
+    "Atualização disponível: {0}": "Aggiornamento disponibile: {0}",
+    "{0} atualizações disponíveis": "{0} aggiornamenti disponibili",
+    "{0}. Abra a Helio Store para atualizar.": "{0}. Apri Helio Store per aggiornare.",
+    "{0} atualizado": "{0} aggiornata",
+    "{0} apps atualizados": "{0} app aggiornate",
+    "{0} agora está na versão mais recente.": "{0} è ora alla versione più recente.",
+    "{0} instalado": "{0} installata",
+    "Versão {0} pronta para abrir.": "La versione {0} è pronta per essere aperta.",
+    "Helio Store {0} disponível": "Helio Store {0} disponibile",
+    "Abra a loja e clique em Atualizar agora.": "Apri lo store e clicca su Aggiorna ora.",
+  },
+  ja: {
+    "Abrir Helio Store": "Helio Store を開く",
+    "Sair da Helio Store": "Helio Store を終了",
+    "Sair": "終了",
+    "Meus aplicativos": "マイアプリ",
+    "Ir para o app": "アプリへ移動",
+    "Abrir": "開く",
+    "Encerrar": "アプリを終了",
+    "Mostrar pasta do app": "アプリのフォルダーを表示",
+    "Helio Store continua aberta": "Helio Store は実行中です",
+    "Ela segue rodando em segundo plano. Clique no ícone da bandeja para abrir de novo.": "バックグラウンドで動作を続けます。もう一度開くには、トレイのアイコンをクリックしてください。",
+    "Atualização disponível: {0}": "更新があります: {0}",
+    "{0} atualizações disponíveis": "{0} 件の更新があります",
+    "{0}. Abra a Helio Store para atualizar.": "{0}。更新するには Helio Store を開いてください。",
+    "{0} atualizado": "{0} を更新しました",
+    "{0} apps atualizados": "{0} 個のアプリを更新しました",
+    "{0} agora está na versão mais recente.": "{0} は最新バージョンになりました。",
+    "{0} instalado": "{0} をインストールしました",
+    "Versão {0} pronta para abrir.": "バージョン {0} を開く準備ができました。",
+    "Helio Store {0} disponível": "Helio Store {0} が利用可能です",
+    "Abra a loja e clique em Atualizar agora.": "ストアを開いて「今すぐ更新」をクリックしてください。",
+  },
+  zh: {
+    "Abrir Helio Store": "打开 Helio Store",
+    "Sair da Helio Store": "退出 Helio Store",
+    "Sair": "退出",
+    "Meus aplicativos": "我的应用",
+    "Ir para o app": "前往应用",
+    "Abrir": "打开",
+    "Encerrar": "退出应用",
+    "Mostrar pasta do app": "显示应用文件夹",
+    "Helio Store continua aberta": "Helio Store 仍在运行",
+    "Ela segue rodando em segundo plano. Clique no ícone da bandeja para abrir de novo.": "它会继续在后台运行。点击托盘图标可再次打开。",
+    "Atualização disponível: {0}": "有可用更新：{0}",
+    "{0} atualizações disponíveis": "有 {0} 个可用更新",
+    "{0}. Abra a Helio Store para atualizar.": "{0}。请打开 Helio Store 进行更新。",
+    "{0} atualizado": "{0} 已更新",
+    "{0} apps atualizados": "已更新 {0} 个应用",
+    "{0} agora está na versão mais recente.": "{0} 现已是最新版本。",
+    "{0} instalado": "{0} 已安装",
+    "Versão {0} pronta para abrir.": "版本 {0} 已可打开。",
+    "Helio Store {0} disponível": "Helio Store {0} 可用",
+    "Abra a loja e clique em Atualizar agora.": "请打开商店并点击“立即更新”。",
+  },
+  ru: {
+    "Abrir Helio Store": "Открыть Helio Store",
+    "Sair da Helio Store": "Выйти из Helio Store",
+    "Sair": "Выйти",
+    "Meus aplicativos": "Мои приложения",
+    "Ir para o app": "Перейти к приложению",
+    "Abrir": "Открыть",
+    "Encerrar": "Закрыть приложение",
+    "Mostrar pasta do app": "Показать папку приложения",
+    "Helio Store continua aberta": "Helio Store продолжает работать",
+    "Ela segue rodando em segundo plano. Clique no ícone da bandeja para abrir de novo.": "Магазин продолжает работать в фоне. Щёлкните значок в трее, чтобы открыть его снова.",
+    "Atualização disponível: {0}": "Доступно обновление: {0}",
+    "{0} atualizações disponíveis": "Доступно обновлений: {0}",
+    "{0}. Abra a Helio Store para atualizar.": "{0}. Откройте Helio Store, чтобы обновить.",
+    "{0} atualizado": "{0} обновлено",
+    "{0} apps atualizados": "Обновлено приложений: {0}",
+    "{0} agora está na versão mais recente.": "{0} теперь последней версии.",
+    "{0} instalado": "{0} установлено",
+    "Versão {0} pronta para abrir.": "Версия {0} готова к открытию.",
+    "Helio Store {0} disponível": "Доступна Helio Store {0}",
+    "Abra a loja e clique em Atualizar agora.": "Откройте магазин и нажмите «Обновить сейчас».",
   },
 };
 function uiLang() {
   const p = state?.settings?.lang;
-  if (p === 'pt' || p === 'en' || p === 'es') return p;
+  const SUP = ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru'];
+  if (SUP.includes(p)) return p;
   const l = String(app.getLocale() || 'pt').toLowerCase();
-  return l.startsWith('pt') ? 'pt' : l.startsWith('es') ? 'es' : 'en'; // outros idiomas: inglês
+  return SUP.find((c) => l === c || l.startsWith(c + '-')) || 'en'; // idioma não suportado: inglês
 }
 function mt(key, ...args) {
-  const l = uiLang(), v = (l !== 'pt' && MT[l] && MT[l][key]) || key;
+  const l = uiLang(), v = (l !== 'pt' && ((MT[l] && MT[l][key]) || (MT.en && MT.en[key]))) || key;
   return v.replace(/\{(\d+)\}/g, (_, i) => args[+i] ?? '');
 }
 
@@ -1057,6 +1191,21 @@ app.whenReady().then(() => {
 
   ipcMain.handle('catalog:get', () => loadCatalog());
   ipcMain.handle('state:get', () => state);
+  // Tradução automática dos textos dos apps (com cache em disco)
+  const trPath = () => path.join(app.getPath('userData'), 'translations.json');
+  const trCache = new Map();
+  try { for (const [k, v] of Object.entries(JSON.parse(fs.readFileSync(trPath(), 'utf8')))) if (typeof v === 'string') trCache.set(k, v); } catch {}
+  let trSave = null;
+  const trPersist = () => { clearTimeout(trSave); trSave = setTimeout(() => { try { const e = [...trCache].slice(-3000); fs.writeFileSync(trPath(), JSON.stringify(Object.fromEntries(e))); } catch {} }, 2000); };
+  ipcMain.handle('i18n:translate', async (_, lang, texts) => {
+    if (!['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru'].includes(lang) || !Array.isArray(texts)) return [];
+    const list = texts.slice(0, 40).map((t) => (typeof t === 'string' ? t.slice(0, 4000) : ''));
+    if (state.settings.autoTranslate === false) return list.map((t) => trCache.get(`${lang}|${t.trim()}`) || t);
+    const before = trCache.size;
+    const out = await tr.translate(list, lang, { cache: trCache });
+    if (trCache.size !== before) trPersist();
+    return out;
+  });
   ipcMain.handle('settings:set', (_, patch) => { state.settings = { ...state.settings, ...patch }; saveState(); if ('autoStart' in patch) applyAutoStart(); if ('lang' in patch) rebuildTrayMenu(); if ('theme' in patch) nativeTheme.themeSource = ({ light: 'light', auto: 'system' })[patch.theme] || 'dark'; return state.settings; });
   ipcMain.handle('settings:pickDir', async () => {
     const r = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] });
@@ -1083,7 +1232,8 @@ app.whenReady().then(() => {
     return {
       repo: e.source.repo, name: e.name, version: e.version, file: String(e.download.url).split('/').pop(), type: e.download.type, sizeMB: e.sizeMB,
       sha256: !!e.download.sha256, license: e.meta.license || '', manifest: !!e.source.manifest, iconSource: e.iconSource,
-      shots: (e.screenshots || []).length, exe: e.download.exe || '', described: e.description !== 'Sem descrição.', // i18n-ignore category: e.category,
+      shots: (e.screenshots || []).length, exe: e.download.exe || '', described: e.description !== 'Sem descrição.', category: e.category, // i18n-ignore
+      tagline: e.tagline, description: String(e.description || '').slice(0, 400), icon: e.icon || '', i18nLangs: Object.keys(e.i18n || {}),
     };
   });
   ipcMain.handle('self:get', () => setSelf({}));

@@ -19,6 +19,7 @@
       "main.js",
       "preload.js",
       "github.js",
+      "translate.js",
       "src/**/*",
       "catalog/**/*"
     ],
@@ -34,7 +35,13 @@
       "installerLanguages": [
         "en_US",
         "pt_BR",
-        "es_ES"
+        "es_ES",
+        "fr_FR",
+        "de_DE",
+        "it_IT",
+        "ja_JP",
+        "zh_CN",
+        "ru_RU"
       ]
     }
   },

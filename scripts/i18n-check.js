@@ -7,7 +7,10 @@ const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 global.window = {}; global.document = { documentElement: {}, body: {} };
 global.navigator = { language: 'pt-BR' }; global.MutationObserver = class { observe() {} takeRecords() { return []; } };
+const langDir = path.join(root, 'src', 'lang');
+if (fs.existsSync(langDir)) for (const f of fs.readdirSync(langDir).filter((x) => x.endsWith('.js'))) new Function(fs.readFileSync(path.join(langDir, f), 'utf8'))();
 new Function(fs.readFileSync(path.join(root, 'src', 'i18n.js'), 'utf8'))();
+const EXTRA = Object.keys(window.I18N_EXTRA || {}), STRICT = process.argv.includes('--strict');
 const tr = window.I18N.tr;
 
 // palavras que só existem em português (evita falso alarme com espanhol/inglês)
@@ -76,11 +79,12 @@ add(html, 'src/index.html');
 for (const m of html.matchAll(/\b(?:title|placeholder|aria-label)="([^"]+)"/g)) add(m[1], 'src/index.html');
 
 let bad = 0;
-for (const lang of ['en', 'es']) {
-  const miss = [...found].filter(([t]) => tr(t, lang) === t && !(MT[lang] && MT[lang][t]));
+for (const lang of ['en', 'es', ...EXTRA]) {
+  const extra = EXTRA.includes(lang);
+  const miss = [...found].filter(([t]) => tr(t, lang, true) === t && !(MT[lang] && MT[lang][t]) && !(window.I18N_EXTRA && window.I18N_EXTRA[lang] && t in window.I18N_EXTRA[lang]));
   if (!miss.length) { console.log(`✓ ${lang}: tudo traduzido`); continue; }
-  bad += miss.length;
-  console.log(`\n✗ ${lang}: ${miss.length} texto(s) sem tradução`);
+  if (!extra || STRICT) bad += miss.length;
+  console.log(`\n${extra && !STRICT ? '⚠' : '✗'} ${lang}: ${miss.length} texto(s) sem tradução${extra && !STRICT ? ' (aparece em inglês até traduzir; use --strict para exigir)' : ''}`);
   for (const [t, f] of miss) console.log(`  [${f}] ${t.length > 110 ? t.slice(0, 110) + '…' : t}`);
 }
 if (bad) { console.log('\nAdicione as frases acima aos dicionários en e es em src/i18n.js.'); process.exit(1); }

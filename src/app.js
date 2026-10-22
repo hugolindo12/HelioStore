@@ -127,22 +127,61 @@ const matches = (a, q) => [a.name, a.tagline, a.category, a.developer].some((t) 
 function card(a) {
   const meta = [a.category, a.sizeMB ? `${a.sizeMB} MB` : null].filter(Boolean).join(' · ');
   return `<article class="card" data-open="${esc(a.id)}">${iconHTML(a, 52)}
-    <div class="card-body"><h3><span class="nm">${esc(a.name)}</span>${a.community ? '<span class="tag">Comunidade</span>' : ''}${isNewApp(a) ? '<span class="tag new">Novo</span>' : ''}</h3><p>${esc(a.tagline)}</p><small>${esc(meta)}</small></div>
+    <div class="card-body"><h3><span class="nm">${esc(a.name)}</span>${a.community ? '<span class="tag">Comunidade</span>' : ''}${isNewApp(a) ? '<span class="tag new">Novo</span>' : ''}</h3><p>${esc(tx(a, 'tagline'))}</p><small>${esc(meta)}</small></div>
     ${getBtn(a)}</article>`;
 }
-function featCard(a) {
+// Destaques rotativos: mais baixado, escolhidos a dedo, atualizados há pouco e em alta
+const WHY = { top: 'Mais baixado', feat: 'Em destaque', upd: 'Atualizado há pouco', hot: 'Em alta' };
+function spotlight() {
+  const seen = new Set(), pool = [];
+  const push = (a, why) => { if (a && !seen.has(a.id)) { seen.add(a.id); pool.push({ a, why }); } };
+  const dl = S.apps.filter((a) => a.meta?.downloads > 0).sort((x, y) => y.meta.downloads - x.meta.downloads);
+  push(dl[0], 'top');
+  S.featured.map(byId).forEach((a) => push(a, 'feat'));
+  recentApps(14).slice(0, 4).forEach((a) => push(a, 'upd'));
+  S.apps.filter((a) => a.meta?.stars > 0).sort((x, y) => y.meta.stars - x.meta.stars).slice(0, 3).forEach((a) => push(a, 'hot'));
+  if (!pool.length) S.apps.slice(0, 6).forEach((a) => push(a, 'feat'));
+  return pool;
+}
+const SPOT_N = 3;
+function spotHTML() {
+  const pool = spotlight(), pages = Math.max(1, Math.ceil(pool.length / SPOT_N));
+  const page = ((S.spot || 0) % pages + pages) % pages;
+  const items = Array.from({ length: Math.min(SPOT_N, pool.length) }, (_, i) => pool[(page * SPOT_N + i) % pool.length]);
+  return { pages, page, html: items.map((x) => featCard(x.a, x.why)).join('') };
+}
+function spotDots(pages, page) {
+  return pages > 1 ? Array.from({ length: pages }, (_, i) => `<button class="spot-dot ${i === page ? 'on' : ''}" data-spot="${i}" aria-label="${i + 1}"></button>`).join('') : '';
+}
+function updateSpot(anim) {
+  const f = $('#feats'); if (!f) return;
+  const r = spotHTML(), set = () => { f.innerHTML = r.html; const d = $('#spot-dots'); if (d) d.innerHTML = spotDots(r.pages, r.page); f.classList.remove('fade'); };
+  if (!anim) return set();
+  f.classList.add('fade'); setTimeout(set, 220);
+}
+let spotTimer = null;
+function startSpot() {
+  if (spotTimer) return;
+  spotTimer = setInterval(() => {
+    if (S.view !== 'discover' || S.query.trim() || document.hidden || S.settings.reduceMotion) return;
+    const f = $('#feats'); if (!f || f.matches(':hover') || f.contains(document.activeElement)) return;
+    S.spot = (S.spot || 0) + 1; updateSpot(true);
+  }, 9000);
+}
+function featCard(a, why = 'feat') {
   return `<article class="feat" data-open="${esc(a.id)}" style="${colorVars(a)}">${iconHTML(a, 60)}
-    <div class="feat-foot"><div><span class="eyebrow">Em destaque</span><h3>${esc(a.name)}</h3><p>${esc(a.tagline)}</p></div>${getBtn(a)}</div></article>`;
+    <div class="feat-foot"><div><span class="eyebrow w-${why}">${esc(WHY[why] || WHY.feat)}</span><h3>${esc(a.name)}</h3><p>${esc(tx(a, 'tagline'))}</p></div>${getBtn(a)}</div></article>`;
 }
 // Ranking da comunidade: apps publicados por GitHub, ordenados por estrelas e downloads
 function topCommunity() {
   const score = (a) => (a.meta?.stars || 0) * 3 + (a.meta?.downloads || 0);
   const top = S.apps.filter((a) => a.community).sort((x, y) => score(y) - score(x)).slice(0, 5);
   if (!top.length) return '';
-  return `<div class="rank"><h3 class="rank-t">Em alta na comunidade</h3>${top.map((a, i) => `<div class="rank-row" data-open="${esc(a.id)}"><b>${i + 1}</b>${iconHTML(a, 36)}<div class="rank-i"><h4>${esc(a.name)}</h4><p>${esc(a.tagline || '')}</p></div><span class="rank-n">${a.meta?.stars ? '★ ' + fmtNum(a.meta.stars) : ''}${a.meta?.downloads ? ' · ⬇ ' + fmtNum(a.meta.downloads) : ''}</span></div>`).join('')}</div>`;
+  return `<div class="rank"><h3 class="rank-t">Em alta na comunidade</h3>${top.map((a, i) => `<div class="rank-row" data-open="${esc(a.id)}"><b>${i + 1}</b>${iconHTML(a, 36)}<div class="rank-i"><h4>${esc(a.name)}</h4><p>${esc(tx(a, 'tagline'))}</p></div><span class="rank-n">${a.meta?.stars ? '★ ' + fmtNum(a.meta.stars) : ''}${a.meta?.downloads ? ' · ⬇ ' + fmtNum(a.meta.downloads) : ''}</span></div>`).join('')}</div>`;
 }
 
 function renderDiscover() {
+  startSpot();
   const el = $('#view-discover'), q = S.query.trim().toLowerCase();
   if (!S.apps.length) { el.innerHTML = '<div class="empty"><strong>Nenhum app ainda</strong>Adicione o primeiro no Helio Creator.</div>'; return; }
 
@@ -152,7 +191,7 @@ function renderDiscover() {
       (res.length ? `<div class="grid">${res.map(card).join('')}</div>` : '<div class="empty"><strong>Nada encontrado</strong>Tente outra palavra.</div>');
     return;
   }
-  const feats = (S.featured.map(byId).filter(Boolean).length ? S.featured.map(byId).filter(Boolean) : S.apps).slice(0, 3);
+  const sp = spotHTML();
   const cats = ['Todos', ...new Set(S.apps.map((a) => a.category).filter(Boolean))];
   if (!cats.includes(S.cat)) S.cat = 'Todos';
   let list = S.cat === 'Todos' ? S.apps.slice() : S.apps.filter((a) => a.category === S.cat);
@@ -161,7 +200,7 @@ function renderDiscover() {
   else if (S.sort === 'az') list.sort((x, y) => x.name.localeCompare(y.name, I18N.locale));
   else if (S.sort === 'stars') list.sort((x, y) => (y.meta?.stars || 0) - (x.meta?.stars || 0));
   el.innerHTML = `<h1 class="title">Explorar</h1><p class="sub">Instale, abra e mantenha seus apps atualizados em um só lugar.</p>
-    <div class="feats">${feats.map(featCard).join('')}</div>
+    <div class="feats" id="feats">${sp.html}</div><div class="spot-dots" id="spot-dots">${spotDots(sp.pages, sp.page)}</div>
     ${S.cat === 'Todos' ? topCommunity() : ''}
     <div class="chips">${cats.map((c) => `<button class="chip ${c === S.cat ? 'active' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
     <div class="sortbar">${[['', 'Destaque'], ['new', 'Recentes'], ['stars', 'Estrelas'], ['az', 'A–Z']].map(([k, l]) => `<button class="sort ${(S.sort || '') === k ? 'on' : ''}" data-sort="${k}">${l}</button>`).join('')}</div>
@@ -180,7 +219,7 @@ function renderLibrary() {
       <div class="row-acts"><button class="btn sq" data-cancel="${esc(id)}" title="Cancelar">${ICON.x}</button></div></div>`; };
   const instRow = (id) => { const a = byId(id), r = S.installed[id], up = r.version !== a.version;
     return `<div class="row" data-open="${esc(id)}">${iconHTML(a, 44)}<div class="row-info"><h4>${esc(a.name)}${a.community ? '<span class="tag">Comunidade</span>' : ''}</h4>
-      <p>v${esc(r.version)}${up ? ` → v${esc(a.version)} disponível` : ''} · instalado em ${new Date(r.installedAt).toLocaleDateString(I18N.locale)}${S.sizes[id] ? ' · ' + fmtBytes(S.sizes[id]) : ''}</p>${up && a.changelog ? `<p class="lib-chg">${esc(a.changelog.split('\n').find((l) => l.trim()) || '').slice(0, 110)}</p>` : ''}</div>
+      <p>v${esc(r.version)}${up ? ` → v${esc(a.version)} disponível` : ''} · instalado em ${new Date(r.installedAt).toLocaleDateString(I18N.locale)}${S.sizes[id] ? ' · ' + fmtBytes(S.sizes[id]) : ''}</p>${up && a.changelog ? `<p class="lib-chg">${esc(tx(a, 'changelog').split('\n').find((l) => l.trim()) || '').slice(0, 110)}</p>` : ''}</div>
       <div class="row-acts">${r.path ? `<button class="btn sq" data-folder="${esc(id)}" title="Abrir pasta">${ICON.folder}</button>` : ''}
       <button class="btn sq danger" data-uninstall="${esc(id)}" title="Desinstalar">${ICON.trash}</button>${getBtn(a)}</div></div>`; };
 
@@ -283,8 +322,42 @@ function openCreatorGuide() {
 const MF = {};
 function manifestText() {
   const o = {};
-  for (const k of ['name', 'tagline', 'category', 'icon', 'exe']) if (MF[k]) o[k] = MF[k];
+  for (const k of ['name', 'tagline', 'description', 'category', 'icon', 'exe']) if (MF[k]) o[k] = MF[k];
+  if (MF.i18n && Object.keys(MF.i18n).length) o.i18n = MF.i18n;
   return Object.keys(o).length ? JSON.stringify(o, null, 2) : MANIFEST_EXAMPLE;
+}
+
+// ───────────── Tradução dos textos dos apps ─────────────
+// 1º o que o autor traduziu no helio.json ("i18n"), 2º tradução automática (com cache), 3º o texto original.
+const TX = { map: new Map(), pend: new Set(), timer: 0, busy: false };
+function txs(text) {
+  const s = String(text || '');
+  if (!s.trim() || S.settings.autoTranslate === false || !window.helio?.translate) return s;
+  const k = I18N.lang + '|' + s.trim();
+  if (TX.map.has(k)) return TX.map.get(k);
+  if (!TX.pend.has(k)) { TX.pend.add(k); clearTimeout(TX.timer); TX.timer = setTimeout(flushTx, 350); }
+  return s;
+}
+const tx = (a, field) => a.i18n?.[I18N.lang]?.[field] || txs(a[field]);
+const txFeatures = (a) => a.i18n?.[I18N.lang]?.features || (a.features || []).map(txs);
+async function flushTx() {
+  if (TX.busy) { TX.timer = setTimeout(flushTx, 600); return; }
+  const lang = I18N.lang, keys = [...TX.pend].filter((k) => k.startsWith(lang + '|')); if (!keys.length) return;
+  keys.forEach((k) => TX.pend.delete(k)); TX.busy = true;
+  let changed = false;
+  try {
+    for (let i = 0; i < keys.length; i += 20) {
+      const part = keys.slice(i, i + 20), src = part.map((k) => k.slice(lang.length + 1));
+      const out = await window.helio.translate(lang, src);
+      part.forEach((k, j) => { const v = out?.[j] || src[j]; TX.map.set(k, v); if (v !== src[j]) changed = true; });
+    }
+  } catch {}
+  TX.busy = false;
+  if (changed && lang === I18N.lang) {
+    if (['discover', 'library', 'publish'].includes(S.view) && !modalOpen()) render();
+    if (S.detailId && $('#detail').classList.contains('open')) openDetail(S.detailId);
+  }
+  if (TX.pend.size) TX.timer = setTimeout(flushTx, 400);
 }
 
 // ───────────── Novidades e feedback ─────────────
@@ -400,9 +473,12 @@ function checkHTML() {
   add(d.iconSource !== 'avatar', d.iconSource === 'manifest' ? 'Ícone definido no helio.json' : 'Ícone encontrado no repositório', 'Sem ícone no repositório: a loja usa a sua foto do GitHub. Coloque icon.png na raiz');
   add(d.shots > 0, `${d.shots} captura(s) de tela`, 'Sem capturas de tela: coloque imagens no README ou na pasta screenshots');
   if (d.type === 'zip') add(!!d.exe, `Executável: ${d.exe}`, 'Executável não informado: a loja vai procurar sozinha. Defina "exe" no helio.json');
+  add(!!d.i18nLangs?.length, `Traduções do autor: ${(d.i18nLangs || []).join(', ')}`, 'Sem traduções no helio.json: a loja traduz o texto sozinha para o idioma de cada pessoa (dá para refinar com “i18n” no helio.json)');
   add(d.manifest, 'helio.json encontrado', 'Sem helio.json (opcional): ele escolhe nome, ícone, categoria e executável');
   const okN = it.filter((x) => x.ok).length;
+  const prev = { name: d.name, tagline: d.tagline, icon: d.icon, glyph: 'box' };
   return `<div class="chk-box"><div class="chk-h"><b>${esc(d.name)}</b><span>${okN} de ${it.length} itens ok</span></div>
+    <div class="chk-prev"><span class="chk-prev-l">Assim ele aparece na loja</span><div class="chk-prev-c">${iconHTML(prev, 44)}<div><h4>${esc(d.name)}</h4><p>${esc(tx({ tagline: d.tagline, i18n: undefined }, 'tagline') || '')}</p></div></div></div>
     ${it.map((x) => `<div class="chk ${x.ok ? 'c-ok' : 'c-warn'}"><i>${x.ok ? '✓' : '!'}</i><span>${esc(x.text)}</span></div>`).join('')}</div>`;
 }
 
@@ -486,12 +562,14 @@ function renderPublish() {
       <div class="mf-form">
         <input data-mf="name" placeholder="Nome do app" autocomplete="off" spellcheck="false">
         <input data-mf="tagline" placeholder="Frase curta" autocomplete="off">
+        <textarea data-mf="description" class="mf-ta" rows="3" placeholder="Descrição" autocomplete="off"></textarea>
         <input data-mf="category" placeholder="Categoria" list="mf-cats" autocomplete="off">
         <input data-mf="exe" placeholder="Executável (ex.: MeuApp.exe)" autocomplete="off" spellcheck="false">
         <input data-mf="icon" placeholder="Ícone (ex.: assets/icon.png)" autocomplete="off" spellcheck="false">
         <datalist id="mf-cats">${[...new Set(S.apps.map((a) => a.category).filter(Boolean))].map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
       </div>
-      <button class="btn" data-copy-manifest>${ICON.copy} Copiar</button><pre id="mf-out">${esc(manifestText())}</pre></details>
+      <button class="btn" data-copy-manifest>${ICON.copy} Copiar</button> <button class="btn" data-mf-translate ${MF.busy ? 'disabled' : ''}>${MF.busy ? 'Traduzindo…' : 'Traduzir para todos os idiomas'}</button>
+      <p class="sub" style="margin:8px 0 0">Gera o bloco “i18n” com a frase curta e a descrição em cada idioma da loja. Revise antes de publicar.</p><pre id="mf-out">${esc(manifestText())}</pre></details>
     <div class="section"><h2>Seus apps</h2><span>${mine.length}${mine.length ? ' · ★ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.stars || 0), 0)) + ' · ⬇ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.downloads || 0), 0)) : ''}</span></div>
     ${mine.length ? `<div class="rows">${mine.map(row).join('')}</div>
       <div class="reg-box"><p>Para aparecer para todo mundo, adicione seus repositórios à lista “repos” do catálogo público.</p><button class="btn" data-copy-registry>${ICON.copy} Copiar lista para o registro público</button></div>`
@@ -641,8 +719,9 @@ function renderSettings() {
       <div class="ctl"><input type="text" id="set-selfrepo" placeholder="${esc(S.self?.repo || 'usuario/heliostore')}" value="${esc(s.selfRepo || '')}" spellcheck="false"><button class="btn" id="save-selfrepo">Salvar</button></div></div>
     <div class="set-row"><div><h4>Atualizar a loja automaticamente</h4><p>Quando a loja está em segundo plano, ela baixa e instala as versões novas sozinha.</p></div><button class="toggle ${s.autoUpdateSelf !== false ? 'on' : ''}" data-toggle="autoUpdateSelf"></button></div>
     <div class="set-row"><div><h4>Feedback</h4><p>Conte uma ideia ou um problema. Abre uma página do GitHub com a mensagem pronta.</p></div><div class="ctl"><button class="btn" data-feedback>Enviar feedback</button><button class="btn" id="open-news">Novidades</button></div></div>
+    <div class="set-row"><div><h4>Traduzir os textos dos apps</h4><p>Traduz automaticamente a descrição e as novidades dos apps para o idioma da loja. Usa o serviço gratuito MyMemory e envia só o texto público do app.</p></div>${tg('autoTranslate')}</div>
     <div class="set-row"><div><h4>Idioma</h4><p>Idioma da interface.</p></div>
-      <div class="seg">${[['auto', 'Automático'], ['pt', 'Português'], ['en', 'English'], ['es', 'Español']].map(([k, l]) => `<button class="seg-b ${(s.lang || 'auto') === k ? 'on' : ''}" data-lang-set="${k}">${l}</button>`).join('')}</div></div>
+      <select class="sel" id="set-lang" aria-label="Idioma">${[['auto', 'Automático'], ['pt', 'Português'], ['en', 'English'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['ja', '日本語'], ['zh', '中文'], ['ru', 'Русский']].map(([k, l]) => `<option value="${k}" ${(s.lang || 'auto') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
     <div class="set-row"><div><h4>Aparência</h4><p>Escuro, claro ou igual ao Windows.</p></div>
       <div class="seg">${[['dark', 'Escuro'], ['light', 'Claro'], ['auto', 'Sistema']].map(([k, l]) => `<button class="seg-b ${(s.theme || 'dark') === k ? 'on' : ''}" data-theme-set="${k}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><div><h4>Tamanho do dock</h4><p>Barra de apps que aparece na tela quando a loja vai para o segundo plano.</p></div>
@@ -671,9 +750,9 @@ function openDetail(id) {
     <div class="d-info"><div><span>Categoria</span><b>${esc(a.category || '—')}</b></div><div><span>Tamanho</span><b>${a.sizeMB ? a.sizeMB + ' MB' : '—'}</b></div><div><span>Versão</span><b>${esc(a.version)}</b></div></div>
     ${trustNote(a)}${metaRows(a)}
     ${a.screenshots?.length ? `<h3>Capturas</h3><div class="shots">${a.screenshots.map((u) => `<img src="${esc(u)}" alt="">`).join('')}</div>` : ''}
-    <h3>Sobre</h3><div class="txt">${esc(a.description || a.tagline)}</div>
-    ${a.features?.length ? `<h3>Destaques</h3><ul>${a.features.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
-    ${a.changelog ? `<h3>Novidades da v${esc(a.version)}</h3><div class="txt">${esc(a.changelog)}</div>` : ''}
+    <h3>Sobre</h3><div class="txt">${esc(tx(a, 'description') || tx(a, 'tagline'))}</div>
+    ${a.features?.length ? `<h3>Destaques</h3><ul>${txFeatures(a).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
+    ${a.changelog ? `<h3>Novidades da v${esc(a.version)}</h3><div class="txt">${esc(tx(a, 'changelog'))}</div>` : ''}
     ${a.community ? '<div class="warn">App da comunidade, publicado por terceiros. Instale apenas se você confia no autor.</div>' : ''}`;
   const d = $('#detail'); d.classList.add('open'); d.setAttribute('aria-hidden', 'false');
   $('#detail-panel').scrollTop = keepScroll;
@@ -879,6 +958,23 @@ document.addEventListener('click', async (e) => {
   if ((el = t('[data-remove]'))) { e.stopPropagation(); await window.helio.github.remove(el.dataset.remove); S.publish.resultId = null; toast('App removido da loja', 'Ele não aparece mais no catálogo.'); return reloadCatalog(); }
   if ((el = t('[data-ext]'))) { e.stopPropagation(); return window.helio.openExternal(el.dataset.ext); }
   if (t('[data-close]')) return closeDetail();
+  if (t('[data-mf-translate]')) {
+    const src = { tagline: MF.tagline || '', description: MF.description || '' };
+    if (!src.tagline && !src.description) return toast('Escreva a frase curta ou a descrição', 'Preencha os campos acima para traduzir.');
+    MF.busy = true; MF.i18n = {}; const btn = t('[data-mf-translate]'); btn.disabled = true; btn.textContent = I18N.t('Traduzindo…');
+    try {
+      for (const l of ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru']) {
+        const out = await window.helio.translate(l, [src.tagline, src.description]), o = {};
+        if (src.tagline && out[0] && out[0] !== src.tagline) o.tagline = out[0];
+        if (src.description && out[1] && out[1] !== src.description) o.description = out[1];
+        if (Object.keys(o).length) MF.i18n[l] = o;
+      }
+    } catch {}
+    MF.busy = false;
+    const n = Object.keys(MF.i18n).length; if (!n) toast('Não foi possível traduzir agora', 'Verifique a conexão e tente de novo.', null, true); else toast('Traduções geradas', `${n} idiomas no bloco “i18n”. Revise e copie o helio.json.`);
+    return renderPublish();
+  }
+  if ((el = t('[data-spot]'))) { S.spot = +el.dataset.spot; updateSpot(true); return; }
   if ((el = t('[data-recheck]'))) {
     const link = repoUrl(el.dataset.recheck); S.publish.input = link; S.publish.check = { busy: true }; renderPublish();
     $('#view-publish')?.scrollTo?.({ top: 0, behavior: 'smooth' }); window.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -915,11 +1011,6 @@ document.addEventListener('click', async (e) => {
   if (t('[data-repos-all]')) { S.publish.allRepos = true; return renderPublish(); }
   if ((el = t('[data-repo-add]'))) return addFromGithub(el.dataset.repoAdd);
   if (t('[data-guide]')) return openCreatorGuide();
-  if ((el = t('[data-lang-set]'))) {
-    S.settings = await window.helio.settings.set({ lang: el.dataset.langSet });
-    I18N.setLang(S.settings.lang); render(); renderDock(); if (S.detailId) openDetail(S.detailId);
-    return;
-  }
   if ((el = t('[data-theme-set]'))) { S.settings = await window.helio.settings.set({ theme: el.dataset.themeSet }); applyTheme(); return renderSettings(); }
   if ((el = t('[data-sort]'))) { S.sort = el.dataset.sort; return renderDiscover(); }
   if ((el = t('[data-cat]'))) { S.cat = el.dataset.cat; return renderDiscover(); }
@@ -986,6 +1077,10 @@ document.addEventListener('input', (e) => {
   if (el.id === 'ed-icon-url' && /^https?:\/\/\S+$/i.test(el.value.trim())) { EDIT.iconNew = el.value.trim(); EDIT.iconClear = false; refreshEdIcon(); }
 });
 document.addEventListener('change', (e) => {
+  if (e.target?.id === 'set-lang') {
+    window.helio.settings.set({ lang: e.target.value }).then((st) => { S.settings = st; I18N.setLang(st.lang); render(); renderDock(); if (S.detailId) openDetail(S.detailId); });
+    return;
+  }
   if (e.target.id === 'ed-file-input' && e.target.files?.[0]) { const f = e.target.files[0]; e.target.value = ''; setEdIcon(() => fileToIcon(f)); }
 });
 // Colar imagem (Ctrl+V) e arrastar/soltar no editor; fora dele, impede que soltar um arquivo troque a página

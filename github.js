@@ -172,6 +172,21 @@ function readmeInfo(md = '', rawBase = '') {
 }
 
 // Resolve um link do GitHub em uma entrada completa do catálogo
+// helio.json pode trazer textos já traduzidos: { "i18n": { "en": { "tagline": "…", "description": "…" } } }
+const I18N_LANGS = ['pt', 'en', 'es', 'fr', 'de', 'it', 'ja', 'zh', 'ru'];
+function cleanI18n(raw) {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out = {};
+  for (const l of I18N_LANGS) {
+    const v = raw[l]; if (!v || typeof v !== 'object') continue;
+    const o = {};
+    for (const f of ['tagline', 'description', 'changelog']) if (typeof v[f] === 'string' && v[f].trim()) o[f] = v[f].trim().slice(0, 1500);
+    if (Array.isArray(v.features)) { const ft = v.features.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 200)).slice(0, 12); if (ft.length) o.features = ft; }
+    if (Object.keys(o).length) out[l] = o;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 async function resolveRepo(input, { token } = {}) {
   const p = parseRepo(input);
   if (!p) throw new Error('Link inválido. Use algo como https://github.com/usuario/meu-app');
@@ -242,6 +257,7 @@ async function resolveRepo(input, { token } = {}) {
       downloads: (rel.assets || []).reduce((n, a) => n + (a.download_count || 0), 0),
       updatedAt: rel.published_at, homepage: info.homepage || null, topics: info.topics || [],
     },
+    i18n: cleanI18n(manifest.i18n),
     source: { type: 'github', repo: info.full_name, url: info.html_url, stars: info.stargazers_count, publishedAt: rel.published_at, manifest: Object.keys(manifest).length > 0 },
   };
 }
@@ -321,4 +337,4 @@ async function listMyRepos(token) {
 }
 
 const _resetNet = () => { limitedUntil = 0; offlineUntil = 0; }; // usado nos testes
-module.exports = { _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };
+module.exports = { cleanI18n, _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };

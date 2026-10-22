@@ -261,6 +261,9 @@
       "Atualizar os apps automaticamente": "Update apps automatically",
   "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Downloads and installs new versions of your apps as soon as they are found.",
       "Avalie os apps com estrelas ao enviar feedback.": "Rate apps with stars when you send feedback.",
+      "Destaque da página inicial que alterna entre os apps mais baixados.": "Home page spotlight that rotates between the most downloaded apps.",
+      "Textos dos apps traduzidos automaticamente para o seu idioma.": "App texts are automatically translated into your language.",
+      "Novos idiomas: francês, alemão, italiano, japonês, chinês e russo.": "New languages: French, German, Italian, Japanese, Chinese and Russian.",
   "Ao atualizar um app, a loja mostra o resumo do que mudou.": "When an app updates, the store shows a summary of what changed.",
   "Novidades e Feedback na loja.": "What's new and Feedback inside the store.",
   "Versão {0}": "Version {0}",
@@ -279,6 +282,23 @@
   "Origem não autorizada.": "Unauthorized origin.",
   "Não foi possível ler essa imagem.": "Couldn't read this image.",
   "Falha ao ler o arquivo.": "Failed to read the file.",
+      "Mais baixado": "Most downloaded",
+  "Atualizado há pouco": "Recently updated",
+  "Em alta": "Trending",
+      "Traduzir os textos dos apps": "Translate app texts",
+  "Traduz automaticamente a descrição e as novidades dos apps para o idioma da loja. Usa o serviço gratuito MyMemory e envia só o texto público do app.": "Automatically translates app descriptions and release notes into the store language. Uses the free MyMemory service and only sends the app's public text.",
+      "Traduções do autor: {0}": "Author translations: {0}",
+  "Sem traduções no helio.json: a loja traduz o texto sozinha para o idioma de cada pessoa (dá para refinar com “i18n” no helio.json)": "No translations in helio.json: the store translates the text for each person's language on its own (you can refine it with “i18n” in helio.json)",
+  "Assim ele aparece na loja": "How it shows up in the store",
+  "Traduzir para todos os idiomas": "Translate into all languages",
+  "Traduzindo…": "Translating…",
+  "Gera o bloco “i18n” com a frase curta e a descrição em cada idioma da loja. Revise antes de publicar.": "Generates the “i18n” block with the short tagline and description in every store language. Review it before publishing.",
+  "Escreva a frase curta ou a descrição": "Write the tagline or the description",
+  "Preencha os campos acima para traduzir.": "Fill in the fields above to translate.",
+  "Não foi possível traduzir agora": "Couldn't translate right now",
+  "Verifique a conexão e tente de novo.": "Check your connection and try again.",
+  "Traduções geradas": "Translations generated",
+  "{0} idiomas no bloco “i18n”. Revise e copie o helio.json.": "{0} languages in the “i18n” block. Review it and copy helio.json.",
       'https://github.com/usuario/meu-app': 'https://github.com/user/my-app', '__mil': 'k', '__mi': 'M',
     },
     es: {
@@ -537,6 +557,9 @@
       "Atualizar os apps automaticamente": "Actualizar las apps automáticamente",
   "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Descarga e instala las versiones nuevas de tus apps en cuanto se encuentran.",
       "Avalie os apps com estrelas ao enviar feedback.": "Valora las apps con estrellas al enviar feedback.",
+      "Destaque da página inicial que alterna entre os apps mais baixados.": "Destacado de la página de inicio que rota entre las apps más descargadas.",
+      "Textos dos apps traduzidos automaticamente para o seu idioma.": "Los textos de las apps se traducen automáticamente a tu idioma.",
+      "Novos idiomas: francês, alemão, italiano, japonês, chinês e russo.": "Nuevos idiomas: francés, alemán, italiano, japonés, chino y ruso.",
   "Ao atualizar um app, a loja mostra o resumo do que mudou.": "Al actualizar una app, la tienda muestra un resumen de lo que cambió.",
   "Novidades e Feedback na loja.": "Novedades y Feedback dentro de la tienda.",
   "Versão {0}": "Versión {0}",
@@ -555,35 +578,56 @@
   "Origem não autorizada.": "Origen no autorizado.",
   "Não foi possível ler essa imagem.": "No se pudo leer esta imagen.",
   "Falha ao ler o arquivo.": "Error al leer el archivo.",
+      "Mais baixado": "Más descargada",
+  "Atualizado há pouco": "Actualizada hace poco",
+  "Em alta": "En alza",
+      "Traduzir os textos dos apps": "Traducir los textos de las apps",
+  "Traduz automaticamente a descrição e as novidades dos apps para o idioma da loja. Usa o serviço gratuito MyMemory e envia só o texto público do app.": "Traduce automáticamente la descripción y las novedades de las apps al idioma de la tienda. Usa el servicio gratuito MyMemory y solo envía el texto público de la app.",
+      "Traduções do autor: {0}": "Traducciones del autor: {0}",
+  "Sem traduções no helio.json: a loja traduz o texto sozinha para o idioma de cada pessoa (dá para refinar com “i18n” no helio.json)": "Sin traducciones en helio.json: la tienda traduce el texto sola al idioma de cada persona (puedes afinarlo con “i18n” en helio.json)",
+  "Assim ele aparece na loja": "Así aparece en la tienda",
+  "Traduzir para todos os idiomas": "Traducir a todos los idiomas",
+  "Traduzindo…": "Traduciendo…",
+  "Gera o bloco “i18n” com a frase curta e a descrição em cada idioma da loja. Revise antes de publicar.": "Genera el bloque “i18n” con la frase corta y la descripción en cada idioma de la tienda. Revísalo antes de publicar.",
+  "Escreva a frase curta ou a descrição": "Escribe la frase corta o la descripción",
+  "Preencha os campos acima para traduzir.": "Rellena los campos de arriba para traducir.",
+  "Não foi possível traduzir agora": "No se pudo traducir ahora",
+  "Verifique a conexão e tente de novo.": "Comprueba la conexión e inténtalo de nuevo.",
+  "Traduções geradas": "Traducciones generadas",
+  "{0} idiomas no bloco “i18n”. Revise e copie o helio.json.": "{0} idiomas en el bloque “i18n”. Revísalo y copia helio.json.",
       'https://github.com/usuario/meu-app': 'https://github.com/usuario/mi-app', '__mil': ' mil', '__mi': ' M',
     },
     pt: { '__mil': ' mil', '__mi': ' mi' },
   };
 
-  const LOCALES = { pt: 'pt-BR', en: 'en-US', es: 'es-ES' };
+  Object.assign(D, window.I18N_EXTRA || {}); // idiomas extras (src/lang/*.js)
+  const LOCALES = { pt: 'pt-BR', en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT', ja: 'ja-JP', zh: 'zh-CN', ru: 'ru-RU' };
+  const SUPPORTED = Object.keys(LOCALES);
   const escRe = (s) => s.replace(/[.*+?^$()|[\]\\]/g, '\\$&');
   const compiled = {};
-  function compile(l) {
-    if (compiled[l]) return compiled[l];
+  function compile(l, strict) {
+    const ck = strict ? l + '!' : l;
+    if (compiled[ck]) return compiled[ck];
     const exact = new Map(), pats = [];
-    for (const [k, v] of Object.entries(D[l] || {})) {
+    const base = strict || l === 'pt' || l === 'en' || l === 'es' ? D[l] : { ...D.en, ...D[l] }; // idiomas extras: o que faltar cai para o inglês
+    for (const [k, v] of Object.entries(base || {})) {
       if (/\{\d+\}/.test(k)) {
         const order = [];
         const src = escRe(k).replace(/\{(\d+)\}/g, (_, n) => { order.push(+n); return '(.+?)'; });
         pats.push({ re: new RegExp('^' + src + '$', 's'), order, v });
       } else exact.set(k, v);
     }
-    return (compiled[l] = { exact, pats });
+    return (compiled[ck] = { exact, pats });
   }
 
   let lang = 'pt';
-  function tr(text, l = lang) {
+  function tr(text, l = lang, strict = false) {
     if (l === 'pt' || !text) return text;
-    const c = compile(l), hit = c.exact.get(text);
+    const c = compile(l, strict), hit = c.exact.get(text);
     if (hit != null) return hit;
     for (const p of c.pats) {
       const m = p.re.exec(text);
-      if (m) return p.v.replace(/\{(\d+)\}/g, (_, n) => { const i = p.order.indexOf(+n); return i < 0 ? '' : tr(m[i + 1], l); });
+      if (m) return p.v.replace(/\{(\d+)\}/g, (_, n) => { const i = p.order.indexOf(+n); return i < 0 ? '' : tr(m[i + 1], l, strict); });
     }
     return text;
   }
@@ -638,14 +682,14 @@
   }
 
   function resolve(pref) {
-    if (pref === 'pt' || pref === 'en' || pref === 'es') return pref;
+    if (SUPPORTED.includes(pref)) return pref;
     const n = String(navigator.language || 'pt').toLowerCase();
-    return n.startsWith('pt') ? 'pt' : n.startsWith('es') ? 'es' : 'en'; // outros idiomas: inglês
+    return SUPPORTED.find((l) => n === l || n.startsWith(l + '-')) || 'en'; // idioma não suportado: inglês
   }
 
   function setLang(pref) {
     lang = resolve(pref);
-    document.documentElement.lang = { pt: 'pt-BR', en: 'en', es: 'es' }[lang];
+    document.documentElement.lang = LOCALES[lang];
     start();
     busy = true;
     try { walk(document.body); } finally { busy = false; obs && obs.takeRecords(); }

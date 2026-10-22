@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('helio', {
   cancel: (id) => ipcRenderer.invoke('app:cancel', id),
   uninstall: (id) => ipcRenderer.invoke('app:uninstall', id),
   rollback: (id) => ipcRenderer.invoke('app:rollback', id),
+  translate: (lang, texts) => ipcRenderer.invoke('i18n:translate', lang, texts),
   sizes: () => ipcRenderer.invoke('app:sizes'),
   account: {
     get: () => ipcRenderer.invoke('account:get'),

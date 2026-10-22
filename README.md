@@ -39,6 +39,13 @@ Opcional: um `helio.json` na raiz do repositório para escolher nome, ícone, ca
 
 Na página de cada app instalado, ligue **Área de Trabalho** ou **Menu Iniciar**. O atalho abre o app direto, sem a loja aberta, e é refeito sozinho depois de cada atualização.
 
+## Idiomas e traduções
+
+A loja fala **português, inglês, espanhol, francês, alemão, italiano, japonês, chinês e russo**. O instalador e a loja seguem o idioma do Windows (idioma não suportado cai para inglês) e dá para trocar em Ajustes.
+
+- **Texto novo na interface:** escreva em português no código e adicione a frase como chave em `src/i18n.js` (inglês e espanhol) e em `src/lang/*.js` (demais idiomas). Rode `npm run i18n`: ele lista tudo que está sem tradução (`--strict` exige todos os idiomas; o GitHub roda essa checagem a cada envio).
+- **Textos dos apps** (descrição, novidades): são traduzidos sozinhos para o idioma de cada pessoa, com cache. Quem publica pode controlar a tradução com um bloco `i18n` no `helio.json` (o Helio Creator gera esse bloco no botão *Traduzir para todos os idiomas*).
+
 ## English
 
 Helio Store is a minimalist Windows app store. Publish any app by pasting its GitHub link: the store reads the latest Release, verifies the SHA-256, installs it and keeps it updated, with one-click rollback. Includes a floating macOS-style dock, a local creator profile with optional GitHub sign-in, dark/light themes and PT/EN/ES.
