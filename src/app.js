@@ -545,6 +545,7 @@ function checkHTML() {
   const prev = { name: d.name, tagline: d.tagline, icon: d.icon, glyph: 'box' };
   return `<div class="chk-box"><div class="chk-h"><b>${esc(d.name)}</b><span>${okN} de ${it.length} itens ok</span></div>
     <div class="chk-prev"><span class="chk-prev-l">Assim ele aparece na loja</span><div class="chk-prev-c">${iconHTML(prev, 44)}<div><h4>${esc(d.name)}</h4><p>${esc(tx({ tagline: d.tagline, i18n: undefined }, 'tagline') || '')}</p></div></div></div>
+    <div class="chk-act"><button class="btn" data-pub-preview>Pré-visualizar</button></div>
     ${it.map((x) => `<div class="chk ${x.ok ? 'c-ok' : 'c-warn'}"><i>${x.ok ? '✓' : '!'}</i><span>${esc(x.text)}</span></div>`).join('')}</div>`;
 }
 
@@ -628,9 +629,25 @@ function readmeTemplate() {
 })();
 
 // ───────────── Diagnóstico e versões anteriores ─────────────
+function openPreview() {
+  const d = S.publish.check?.data; if (!d) return;
+  const a = { name: d.name, tagline: d.tagline, icon: d.icon, glyph: 'box' };
+  const meta = [d.version ? 'v' + d.version : '', d.sizeMB ? d.sizeMB + ' MB' : '', d.category || '', d.license || ''].filter(Boolean).join(' · ');
+  openModalHTML(`<h2>Pré-visualização</h2><p class="sub" style="margin:4px 0 14px">Assim a página do app aparece na loja.</p>
+    <div class="chk-prev-c" style="margin-bottom:12px">${iconHTML(a, 64)}<div><h4 style="font-size:18px">${esc(d.name)}</h4><p>${esc(d.tagline || '')}</p><p style="opacity:.7">${esc(meta)}</p></div></div>
+    <div class="txt">${esc(d.description || '')}</div>
+    <div class="ed-foot"><span class="grow"></span><button class="btn primary" data-modal-close>Fechar</button></div>`);
+}
+function reportStore() {
+  const txt = ($('#diag-pre')?.textContent || '').slice(0, 5500);
+  const repo = S.self?.repo || 'hugolindo12/HelioStore';
+  const body = `Descreva o problema aqui.\n\n---\nDiagnóstico:\n\`\`\`\n${txt}\n\`\`\``; // i18n-ignore
+  window.helio.openExternal(`https://github.com/${repo}/issues/new?labels=bug&title=${encodeURIComponent('[Loja] Problema')}&body=${encodeURIComponent(body)}`);
+  toast('Abrindo o GitHub', 'Confirme o envio na página que abriu.');
+}
 async function openDiag() {
   openModalHTML(`<h2>Diagnóstico</h2><p class="sub" style="margin:4px 0 12px">Versão, sistema e últimos eventos da loja.</p><pre id="diag-pre" class="diag-pre">…</pre>
-    <div class="ed-foot"><button class="btn" data-diag-copy>${ICON.copy} Copiar</button><span class="grow"></span><button class="btn primary" data-modal-close>Fechar</button></div>`);
+    <div class="ed-foot"><button class="btn" data-diag-copy>${ICON.copy} Copiar</button><button class="btn" data-diag-report>Reportar problema</button><span class="grow"></span><button class="btn primary" data-modal-close>Fechar</button></div>`);
   try { const t = await window.helio.diag(); const pre = $('#diag-pre'); if (pre) pre.textContent = t; } catch (e) { const pre = $('#diag-pre'); if (pre) pre.textContent = cleanErr(e); }
 }
 async function loadVersions(id) {
@@ -1259,6 +1276,8 @@ document.addEventListener('click', async (e) => {
     toast('Sessão encerrada', 'Entre de novo para usar o Helio Creator.'); return renderPublish();
   }
   if (t('[data-diag]')) return openDiag();
+  if (t('[data-diag-report]')) return reportStore();
+  if (t('[data-pub-preview]')) return openPreview();
   if (t('[data-diag-copy]')) { await copyText($('#diag-pre')?.textContent || ''); return toast('Diagnóstico copiado', 'Cole na mensagem de feedback.'); }
   if ((el = t('[data-vers-load]'))) return loadVersions(el.dataset.versLoad);
   if ((el = t('[data-vers-install]'))) return installVersion(el.dataset.versId, el.dataset.versInstall, el.dataset.versVer);

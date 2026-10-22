@@ -12,3 +12,10 @@ _backup_*/
 .env.*
 
 src/__smoke*
+
+# certificados de assinatura (veja SIGNING.md)
+*.pfx
+*.p12
+*.pem
+*.key
+*.cer

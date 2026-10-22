@@ -550,3 +550,4 @@ html[data-theme="light"] .chk.c-ok i { color: #1a9a3c; } html[data-theme="light"
 .card:focus-visible, .row:focus-visible, .feat:focus-visible, .rank-row:focus-visible { outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
 #set-gid, #set-gsecret { width: 190px; } .set-row .ctl { flex-wrap: wrap; justify-content: flex-end; }
+.chk-act{display:flex;justify-content:flex-end;margin:8px 0 4px}

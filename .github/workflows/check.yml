@@ -21,6 +21,8 @@ jobs:
           for f in main.js preload.js github.js translate.js src/app.js src/i18n.js; do node --check "$f"; done
           node -e "JSON.parse(require('fs').readFileSync('catalog/apps.json','utf8')); JSON.parse(require('fs').readFileSync('package.json','utf8'))"
       - run: node scripts/i18n-check.js
+      - run: node scripts/ipc-check.js
+      - run: node tests/unit.js
 
   # Abre a interface num Chromium (com a API do Electron simulada) e passa por todas as telas e idiomas.
   ui:
@@ -33,3 +35,17 @@ jobs:
       - run: npm install --no-save --no-package-lock playwright@1.49.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/smoke.js
+
+  # Abre o Electron de verdade (tela virtual) e confere se a loja carrega e os comandos respondem.
+  electron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y xvfb libgbm1 libasound2t64 libnss3 libgtk-3-0t64
+      - run: xvfb-run -a npx electron . --no-sandbox --smoke-test
+        timeout-minutes: 5

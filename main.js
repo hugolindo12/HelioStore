@@ -10,6 +10,8 @@ const gh = require('./github');
 const tr = require('./translate');
 
 const isDev = process.argv.includes('--dev');
+const SMOKE = process.argv.includes('--smoke-test'); // teste automático (CI): abre a loja, confere e fecha
+if (SMOKE) { try { app.setPath('userData', fs.mkdtempSync(path.join(require('os').tmpdir(), 'helio-smoke-'))); } catch {} }
 const launchArgOf = (argv) => { const a = (argv || []).find((x) => String(x).startsWith('--launch=')); return a ? a.slice(9) : null; };
 const launchOnly = launchArgOf(process.argv); // atalho do app: abre o app e a loja não aparece
 const startHidden = process.argv.includes('--hidden') || !!launchOnly; // iniciado com o Windows: só o dock, sem abrir a janela
@@ -1094,6 +1096,32 @@ async function rollbackApp(id) {
 }
 
 // ───────────────────────── Janela ─────────────────────────
+// Teste automático: abre a janela de verdade, espera a interface carregar e confere se os comandos respondem
+function runSmoke() {
+  const fail = (m) => { console.error('SMOKE_FAIL: ' + m); process.exit(1); };
+  const timer = setTimeout(() => fail('timeout'), 90000);
+  const errs = [];
+  win.webContents.on('console-message', (e, ...a) => {
+    const lvl = e.level ?? a[0], msg = String(e.message ?? a[1] ?? '');
+    if ((lvl === 3 || lvl === 'error') && !/Failed to load resource|net::ERR/i.test(msg)) errs.push(msg.slice(0, 200));
+  });
+  win.webContents.on('render-process-gone', (_e, d) => fail('renderer crashed: ' + d.reason));
+  win.webContents.on('did-fail-load', (_e, code, desc) => fail('UI failed to load: ' + desc));
+  win.webContents.on('did-finish-load', async () => {
+    try {
+      const run = (js) => win.webContents.executeJavaScript(js);
+      let n = 0;
+      for (let i = 0; i < 60 && !n; i++) { n = await run('(window.helio ? document.querySelectorAll(".card, .row").length : 0)'); if (!n) await new Promise((r) => setTimeout(r, 500)); }
+      if (!n) fail('UI opened without apps or without window.helio');
+      const diag = await run('window.helio.diag()');
+      if (!/Helio Store v/.test(String(diag))) fail('unexpected diag output');
+      if (errs.length) fail('console errors: ' + errs.join(' | '));
+      clearTimeout(timer);
+      console.log(`SMOKE_OK: ${n} items on screen, diag ok`);
+      isQuitting = true; app.exit(0);
+    } catch (e) { fail(String(e && e.message || e)); }
+  });
+}
 function createWindow() {
   win = new BrowserWindow({
     width: 1360,
@@ -1394,6 +1422,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  if (SMOKE) runSmoke();
   createTray();
   if (state.settings.autoStart) applyAutoStart();
   if (startHidden) showDock();
