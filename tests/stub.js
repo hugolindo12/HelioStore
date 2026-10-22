@@ -13,7 +13,6 @@
     translate: async (lang, texts) => { window.__trCalls = (window.__trCalls || 0) + 1; return texts.map(t => '[' + lang + '] ' + t); },
     install: async () => ({}), cancel: async () => {}, uninstall: async () => {}, launch: async () => ({ ok: true }), openFolder() {}, openExternal() {}, onProgress() {},
     self: { _u: { repo: 'hugolindo12/HelioStore', status: 'idle', current: '2.0.0', version: '', percent: 0, error: '' }, _cb: null, get: async function () { return this._u; }, check: async function () { this._u = { status: 'available', current: '2.0.0', version: '2.1.0', percent: 0, error: '' }; return this._u; }, install: async function () { window.__selfInstalled = true; }, onChanged: function (cb) { window.__selfCb = cb; } },
-    google: { _u: params.has('nologin') ? null : { name: 'Teste', email: 't@x.com', picture: '' }, get: async function () { return this._u; }, login: async function () { if (window.__gFail) throw new Error("Error invoking remote method 'google:login': Error: Login negado no Google."); this._u = { name: 'Hugo', email: 'h@x.com', picture: '' }; return this._u; }, cancel() {}, logout: async function () { this._u = null; } },
     diag: async () => 'Helio Store v2.0.2 (instalada)\nEletron 44\n--- últimos eventos ---\n(sem eventos)',
     github: {
       versions: async () => [{ tag: 'v1.4.0', version: '1.4.0', date: '2026-10-01', notes: 'Correções', sizeMB: 12, pre: false }, { tag: 'v1.3.0', version: '1.3.0', date: '2026-09-01', notes: '', sizeMB: 11, pre: false }],
@@ -33,7 +32,7 @@
       },
       remove: async (id) => { delete user[id]; }, check: async () => ({ updated: [] }),
     },
-    account: { _u: null, get: async function () { return this._u; },
+    account: { _u: params.has('nologin') ? null : { login: 'hugo', name: 'Hugo Lopes', avatar: '', url: 'https://github.com/hugo' }, get: async function () { return this._u; },
       loginToken: async function (t) { if (t === 'bad') throw new Error("Error invoking remote method 'account:login-token': Error: Token inválido ou expirado."); settings.githubToken = t; return (this._u = { login: 'hugo', name: 'Hugo Lopes', avatar: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><circle cx="22" cy="22" r="22" fill="#7b3dff"/></svg>'), url: 'https://github.com/hugo' }); },
       loginDevice: async function () { if (!settings.githubClientId) throw new Error('Informe o Client ID do app OAuth do GitHub em Ajustes para entrar com código.'); return { user_code: 'ABCD-1234', verification_uri: 'https://github.com/login/device', expires_in: 900 }; },
       cancel: async () => {}, logout: async function () { this._u = null; settings.githubToken = ''; },

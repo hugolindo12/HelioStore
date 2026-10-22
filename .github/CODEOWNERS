@@ -1,0 +1,10 @@
+# Arquivos críticos: toda mudança exige revisão do dono (ative "Require review from Code Owners" na proteção da branch main).
+*                      @hugolindo12
+/main.js               @hugolindo12
+/preload.js            @hugolindo12
+/github.js             @hugolindo12
+/package.json          @hugolindo12
+/package-lock.json     @hugolindo12
+/.github/              @hugolindo12
+/catalog/              @hugolindo12
+/SECURITY.md           @hugolindo12

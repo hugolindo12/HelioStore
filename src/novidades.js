@@ -4,7 +4,7 @@ window.NEWS = [
   {
     v: '2.0.2',
     items: [
-      'Helio Creator agora exige entrar com o GitHub ou o Google.',
+      'Helio Creator agora exige entrar com o GitHub.',
       'Versões anteriores: instale uma versão específica de qualquer app.',
       'Fila de instalações, aviso de pouco espaço em disco e quanto espaço foi liberado ao desinstalar.',
       'Diagnóstico em Ajustes e melhorias de acessibilidade pelo teclado.',

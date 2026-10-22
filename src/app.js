@@ -483,7 +483,7 @@ async function initSelf() {
 const PROF_COLORS = ['#0a84ff', '#30d158', '#ff9f0a', '#ff453a', '#bf5af2', '#64d2ff'];
 function profAvatar(size) {
   const p = S.settings.profile || {};
-  const pic = S.account?.avatar || S.google?.picture;
+  const pic = S.account?.avatar;
   if (pic) return `<img src="${esc(pic)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%">`;
   return `<span class="prof-av" style="width:${size}px;height:${size}px;background:${esc(p.color || PROF_COLORS[0])};font-size:${Math.round(size * .44)}px">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</span>`;
 }
@@ -497,8 +497,8 @@ function profileHTML() {
       <div class="acct-btns" style="margin-top:12px"><button class="btn primary" data-prof-save>${p ? 'Salvar' : 'Criar perfil'}</button>
         ${p ? '<button class="btn" data-prof-cancel>Cancelar</button><button class="btn" data-prof-del>Excluir perfil</button>' : ''}</div></div>`;
   }
-  return `<div class="acct in">${profAvatar(44)}<div class="acct-who"><b>${esc(p.name)}</b><span>${S.account ? 'GitHub @' + esc(S.account.login) : S.google ? 'Google · ' + esc(S.google.email) : 'Perfil neste computador'}</span></div>
-    <button class="btn" data-prof-edit>Editar</button>${S.account && S.google ? '<button class="btn" data-acct-logout>Desvincular GitHub</button>' : ''}<button class="btn" data-signout>Sair</button></div>`;
+  return `<div class="acct in">${profAvatar(44)}<div class="acct-who"><b>${esc(p.name)}</b><span>${S.account ? 'GitHub @' + esc(S.account.login) : 'Perfil neste computador'}</span></div>
+    <button class="btn" data-prof-edit>Editar</button><button class="btn" data-signout>Sair</button></div>`;
 }
 
 // ───────────── Verificar o repositório antes de publicar ─────────────
@@ -697,20 +697,14 @@ window.helio.account?.onChanged(async (p) => {
   else { S.auth.device = null; S.auth.busy = false; S.auth.error = p.error || ''; if (S.view === 'publish') renderPublish(); }
 });
 
-const G = { waiting: false, error: '' };
 function loginGate(el) {
-  const hasG = !!(S.settings.googleClientId || '').trim();
   el.innerHTML = `<div class="creator-head"><h1 class="title">Helio Creator</h1><button class="btn" data-guide>${ICON.help} Como funciona</button></div>
-    <p class="sub">Entre com o GitHub ou com o Google para usar o Helio Creator.</p>
-    <div class="login-grid">${acctHTML(true)}
-      <div class="acct"><div class="acct-h"><b>Entrar com o Google</b><span>Identifica você no Helio Creator. Não dá acesso ao seu GitHub.</span></div>
-        ${hasG ? `<div class="acct-btns"><button class="btn primary" data-google-login ${G.waiting ? 'disabled' : ''}>Entrar com o Google</button>${G.waiting ? '<button class="btn" data-google-cancel>Cancelar</button>' : ''}</div>${G.waiting ? '<em class="acct-note">Termine o login na janela do navegador que abriu.</em>' : ''}`
-          : `<p class="acct-note">Para entrar com o Google, informe o Client ID de um app OAuth do Google em Ajustes.</p><div class="acct-btns"><button class="btn" data-goto-settings>Abrir Ajustes</button></div>`}
-        ${G.error ? `<div class="pub-msg error">${esc(G.error)}</div>` : ''}</div></div>`;
+    <p class="sub">Entre com o GitHub para usar o Helio Creator.</p>
+    <div class="login-grid">${acctHTML(true)}</div>`;
 }
 function renderPublish() {
   const el = $('#view-publish'), P = S.publish;
-  if (!S.account && !S.google) return loginGate(el);
+  if (!S.account) return loginGate(el);
   const mine = S.apps.filter((a) => a.mine);
   const res = P.resultId && byId(P.resultId);
   const hint = pubHint(P.input);
@@ -899,8 +893,6 @@ function renderSettings() {
       <div class="ctl"><input type="password" id="set-token" placeholder="ghp_…" value="${esc(s.githubToken || '')}"><button class="btn" id="save-token">Salvar</button></div></div>
     <div class="set-row"><div><h4>Client ID do GitHub</h4><p>Para entrar com código no Helio Creator. Crie um app OAuth em github.com/settings/developers e ative o “Device Flow”.</p></div>
       <div class="ctl"><input type="text" id="set-clientid" placeholder="Iv1.…" value="${esc(s.githubClientId || '')}" spellcheck="false"><button class="btn" id="save-clientid">Salvar</button></div></div>
-    <div class="set-row"><div><h4>Client ID do Google</h4><p>Para entrar com o Google no Helio Creator. Crie em console.cloud.google.com, em Credenciais, um “ID do cliente OAuth” do tipo “App para computador”.</p></div>
-      <div class="ctl"><input type="text" id="set-gid" placeholder="….apps.googleusercontent.com" value="${esc(s.googleClientId || '')}" spellcheck="false"><input type="password" id="set-gsecret" placeholder="Client secret" value="${esc(s.googleClientSecret || '')}" spellcheck="false"><button class="btn" id="save-gid">Salvar</button></div></div>
     <div class="set-row"><div><h4>Diagnóstico</h4><p>Versão, sistema e últimos eventos da loja. Copie e envie junto com o feedback quando algo der errado.</p></div><button class="btn" data-diag>Ver diagnóstico</button></div>
     <div class="set-row"><div><h4>Atualizações da loja</h4><p id="self-status">${esc(selfText())}</p></div><div class="ctl">${S.self?.status === 'available' ? '<button class="btn primary" data-self-install>Atualizar agora</button>' : ''}<button class="btn" id="self-check">Verificar</button></div></div>
     <div class="set-row"><div><h4>Repositório da Helio Store</h4><p>Repositório no GitHub (dono/nome) onde você publica os Releases da própria loja.</p></div>
@@ -1095,7 +1087,6 @@ async function fetchAll() {
   applyTheme(); I18N.setLang(S.settings.lang || 'auto');
   try { S.running = new Set((await window.helio.running?.()) || []); } catch {}
   try { S.account = (await window.helio.account?.get()) || null; } catch {}
-  try { S.google = (await window.helio.google?.get()) || null; } catch {}
   document.documentElement.classList.toggle('big-catalog', S.apps.length > 150);
   refreshNewsDot();
   applyDockPrefs();
@@ -1260,24 +1251,13 @@ document.addEventListener('click', async (e) => {
   if (t('#open-news')) return openNews(false);
   if (t('#self-check')) { S.self = await window.helio.self.check(); renderSelf(); if (S.view === 'settings') renderSettings(); return; }
   if (t('#save-selfrepo')) { S.settings = await window.helio.settings.set({ selfRepo: $('#set-selfrepo').value.trim() }); toast('Repositório salvo', 'Clique em Verificar para checar atualizações da loja.'); return; }
-  if (t('[data-google-login]')) {
-    G.waiting = true; G.error = ''; renderPublish();
-    try {
-      S.google = await window.helio.google.login();
-      if (!S.settings.profile) S.settings = await window.helio.settings.set({ profile: { name: S.google.name, color: PROF_COLORS[0] } });
-      toast('Conectado ao Google', S.google.email);
-    } catch (e) { const m = cleanErr(e); if (!/Cancelado/.test(m)) G.error = m; }
-    G.waiting = false; return renderPublish();
-  }
-  if (t('[data-google-cancel]')) { window.helio.google.cancel(); return; }
   if (t('[data-goto-settings]')) return document.querySelector('[data-view="settings"]')?.click();
   if (t('[data-signout]')) {
-    try { await window.helio.account.logout(); await window.helio.google.logout(); } catch {}
-    S.account = null; S.google = null; S.publish.repos = null; S.publish.allRepos = false;
+    try { await window.helio.account.logout(); } catch {}
+    S.account = null; S.publish.repos = null; S.publish.allRepos = false;
     try { S.settings = (await window.helio.state()).settings; } catch {}
     toast('Sessão encerrada', 'Entre de novo para usar o Helio Creator.'); return renderPublish();
   }
-  if (t('#save-gid')) { S.settings = await window.helio.settings.set({ googleClientId: $('#set-gid').value.trim(), googleClientSecret: $('#set-gsecret').value.trim() }); return toast('Client ID salvo', 'Agora dá para entrar com o Google no Helio Creator.'); }
   if (t('[data-diag]')) return openDiag();
   if (t('[data-diag-copy]')) { await copyText($('#diag-pre')?.textContent || ''); return toast('Diagnóstico copiado', 'Cole na mensagem de feedback.'); }
   if ((el = t('[data-vers-load]'))) return loadVersions(el.dataset.versLoad);

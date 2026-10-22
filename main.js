@@ -74,7 +74,7 @@ function loadState() {
     const def = defaultState();
     const st = { ...def, ...raw, settings: { ...def.settings, ...(raw.settings || {}) } };
     // token do GitHub guardado criptografado (DPAPI no Windows); tokens antigos em texto continuam valendo
-    for (const k of ['googleClientSecret']) if (st.settings[k + 'Enc']) { try { st.settings[k] = safeStorage.decryptString(Buffer.from(st.settings[k + 'Enc'], 'base64')); } catch { st.settings[k] = ''; } delete st.settings[k + 'Enc']; }
+    delete st.settings.googleClientId; delete st.settings.googleClientSecret; delete st.settings.googleClientSecretEnc; delete st.google; // login com Google foi removido
     if (st.settings.githubTokenEnc) {
       try { st.settings.githubToken = safeStorage.decryptString(Buffer.from(st.settings.githubTokenEnc, 'base64')); } catch { st.settings.githubToken = ''; st.account = null; } // não deu para ler o token (outro usuário/PC): pede para entrar de novo
     }
@@ -103,9 +103,6 @@ function saveState() {
   try {
     if (state.settings.githubToken && safeStorage.isEncryptionAvailable()) {
       out = { ...state, settings: { ...state.settings, githubToken: '', githubTokenEnc: safeStorage.encryptString(state.settings.githubToken).toString('base64') } };
-    }
-    if (state.settings.googleClientSecret && safeStorage.isEncryptionAvailable()) {
-      out = { ...out, settings: { ...out.settings, googleClientSecret: '', googleClientSecretEnc: safeStorage.encryptString(state.settings.googleClientSecret).toString('base64') } };
     }
   } catch {}
   // gravação atômica: escreve num arquivo temporário e troca; a versão anterior vira .bak
@@ -536,50 +533,6 @@ async function loadCatalog() {
   return { apps: [...map.values()], featured: remote.featured || local.featured || [], remoteError, cached };
 }
 
-// ───────────────────── Conta do Google (só identifica a pessoa) ─────────────────────
-// Fluxo "app instalado" do Google: abre o navegador, recebe o código numa porta local (127.0.0.1) e troca por um token com PKCE.
-// Guardamos só nome, e-mail e foto; o token do Google é descartado logo depois.
-let googleJob = null;
-const b64url = (b) => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-async function loginGoogle() {
-  const clientId = String(state.settings.googleClientId || '').trim(), secret = String(state.settings.googleClientSecret || '').trim();
-  if (!clientId) throw new Error('Informe o Client ID do Google em Ajustes para entrar com o Google.');
-  if (googleJob) googleJob.cancel();
-  const crypto = require('crypto');
-  const verifier = b64url(crypto.randomBytes(32)), challenge = b64url(crypto.createHash('sha256').update(verifier).digest()), st = b64url(crypto.randomBytes(16));
-  const job = googleJob = { server: null, timer: null, cancel() { clearTimeout(this.timer); try { this.server?.close(); } catch {} if (googleJob === this) googleJob = null; this.fail?.(new Error('Cancelado')); } };
-  const code = await new Promise((resolve, reject) => {
-    job.fail = reject;
-    job.server = http.createServer((req, res) => {
-      const u = new URL(req.url, 'http://127.0.0.1');
-      if (u.pathname !== '/callback') { res.writeHead(404); return res.end(); }
-      const ok = u.searchParams.get('state') === st && u.searchParams.get('code');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`<!doctype html><meta charset="utf-8"><title>Helio Store</title><body style="font:16px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#111;color:#eee"><p>${ok ? 'Pronto! Pode fechar esta janela e voltar para a Helio Store.' : 'Não foi possível entrar. Volte para a Helio Store e tente de novo.'}</p>`);
-      clearTimeout(job.timer); job.server.close();
-      ok ? resolve(u.searchParams.get('code')) : reject(new Error(u.searchParams.get('error') || 'Login negado no Google.'));
-    });
-    job.server.on('error', reject);
-    job.server.listen(0, '127.0.0.1', () => {
-      job.redirect = `http://127.0.0.1:${job.server.address().port}/callback`;
-      const q = new URLSearchParams({ client_id: clientId, redirect_uri: job.redirect, response_type: 'code', scope: 'openid email profile', code_challenge: challenge, code_challenge_method: 'S256', state: st, prompt: 'select_account' });
-      shell.openExternal('https://accounts.google.com/o/oauth2/v2/auth?' + q.toString());
-    });
-    job.timer = setTimeout(() => { try { job.server.close(); } catch {} reject(new Error('Tempo esgotado esperando o login do Google.')); }, 3 * 60 * 1000);
-  }).finally(() => { clearTimeout(job.timer); if (googleJob === job) googleJob = null; });
-  const body = new URLSearchParams({ code, client_id: clientId, redirect_uri: job.redirect, grant_type: 'authorization_code', code_verifier: verifier });
-  if (secret) body.set('client_secret', secret);
-  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.id_token) throw new Error(`O Google recusou o login (${j.error_description || j.error || 'HTTP ' + r.status}).`);
-  const claims = JSON.parse(Buffer.from(String(j.id_token).split('.')[1], 'base64').toString('utf8')); // veio direto do Google por HTTPS
-  if (claims.aud !== clientId || String(claims.iss).replace(/^https:\/\//, '') !== 'accounts.google.com') throw new Error('Resposta do Google inesperada.');
-  state.google = { name: String(claims.name || claims.email || 'Google').slice(0, 80), email: String(claims.email || ''), picture: /^https:\/\//.test(claims.picture || '') ? claims.picture : '', at: Date.now() };
-  saveState(); logf('login Google ok');
-  return state.google;
-}
-function logoutGoogle() { googleJob?.cancel(); state.google = null; saveState(); }
-
 // ───────────────────── Diagnóstico ─────────────────────
 async function diagText() {
   let tail = ''; try { tail = fs.readFileSync(logPath(), 'utf8').trim().split('\n').slice(-60).join('\n'); } catch {}
@@ -590,7 +543,7 @@ async function diagText() {
     `Windows/SO: ${require('os').release()} ${process.arch} · idioma do sistema: ${app.getLocale()} · idioma da loja: ${state.settings.lang || 'auto'}`, // i18n-ignore
     `Pasta de instalação: ${state.settings.installDir} (${Number.isFinite(free) ? Math.floor(free / 1048576) + ' MB livres' : 'espaço desconhecido'})`, // i18n-ignore
     `Apps instalados: ${Object.keys(state.installed || {}).length} · atualização da loja: ${selfUpd.status}${selfUpd.version ? ' → v' + selfUpd.version : ''}${selfUpd.error ? ' (' + selfUpd.error + ')' : ''}`, // i18n-ignore
-    `Conta: GitHub ${state.account ? '@' + state.account.login : 'não'} · Google ${state.google ? 'sim' : 'não'}`,
+    `Conta: GitHub ${state.account ? '@' + state.account.login : 'não'}`,
     '', '--- últimos eventos ---', tail || '(sem eventos)', // i18n-ignore
   ].join('\n');
 }
@@ -1400,10 +1353,6 @@ app.whenReady().then(() => {
     if (state.installed[id] && latest && latest !== state.installed[id].version) { state.installed[id].pinned = true; saveState(); } // versão antiga escolhida: a atualização automática não a sobrescreve
     return state.installed[id] || rec;
   });
-  ipcMain.handle('google:get', () => state.google || null);
-  ipcMain.handle('google:login', () => loginGoogle());
-  ipcMain.handle('google:cancel', () => googleJob?.cancel());
-  ipcMain.handle('google:logout', () => logoutGoogle());
   ipcMain.handle('diag:get', () => diagText());
   ipcMain.handle('self:get', () => setSelf({}));
   ipcMain.handle('self:check', () => checkSelfUpdate(true));

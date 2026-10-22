@@ -29,12 +29,6 @@ contextBridge.exposeInMainWorld('helio', {
     repos: () => ipcRenderer.invoke('account:repos'),
     onChanged: (cb) => ipcRenderer.on('account:changed', (_, p) => cb(p)),
   },
-  google: {
-    get: () => ipcRenderer.invoke('google:get'),
-    login: () => ipcRenderer.invoke('google:login'),
-    cancel: () => ipcRenderer.invoke('google:cancel'),
-    logout: () => ipcRenderer.invoke('google:logout'),
-  },
   diag: () => ipcRenderer.invoke('diag:get'),
   self: {
     get: () => ipcRenderer.invoke('self:get'),

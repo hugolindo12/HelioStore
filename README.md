@@ -48,10 +48,9 @@ A loja fala **português, inglês, espanhol, francês, alemão, italiano, japon�
 
 ## Entrar no Helio Creator
 
-O Helio Creator pede login com o **GitHub** ou com o **Google** (o login é uma barreira de uso da interface, não uma proteção de segurança: o app roda no seu computador).
+O Helio Creator pede login com o **GitHub** (o login é uma barreira de uso da interface, não uma proteção de segurança: o app roda no seu computador).
 
-- **GitHub:** cole um token (`github.com/settings/tokens`) ou entre por código (a loja já traz o Client ID público do app OAuth “Helio Store”; dá para trocar em Ajustes).
-- **Google:** em `console.cloud.google.com`, crie em *Credenciais* um “ID do cliente OAuth” do tipo **App para computador** e coloque o Client ID (e o secret, se o Google der um) em Ajustes. A loja usa o fluxo com PKCE e guarda só nome, e-mail e foto.
+- Entre por código (a loja já traz o Client ID público do app OAuth “Helio Store”; dá para trocar em Ajustes) ou colando um token (`github.com/settings/tokens`).
 - Em Ajustes há também **Diagnóstico** (versão, sistema e últimos eventos) para anexar quando algo der errado.
 
 ## English
