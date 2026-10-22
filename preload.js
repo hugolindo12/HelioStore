@@ -29,6 +29,13 @@ contextBridge.exposeInMainWorld('helio', {
     repos: () => ipcRenderer.invoke('account:repos'),
     onChanged: (cb) => ipcRenderer.on('account:changed', (_, p) => cb(p)),
   },
+  google: {
+    get: () => ipcRenderer.invoke('google:get'),
+    login: () => ipcRenderer.invoke('google:login'),
+    cancel: () => ipcRenderer.invoke('google:cancel'),
+    logout: () => ipcRenderer.invoke('google:logout'),
+  },
+  diag: () => ipcRenderer.invoke('diag:get'),
   self: {
     get: () => ipcRenderer.invoke('self:get'),
     check: () => ipcRenderer.invoke('self:check'),
@@ -48,6 +55,8 @@ contextBridge.exposeInMainWorld('helio', {
     override: (id, patch) => ipcRenderer.invoke('github:override', id, patch),
     check: () => ipcRenderer.invoke('github:check'),
     stats: (repo) => ipcRenderer.invoke('github:stats', repo),
+    versions: (repo) => ipcRenderer.invoke('github:versions', repo),
+    installVersion: (id, tag) => ipcRenderer.invoke('github:installVersion', id, tag),
   },
   onStateChanged: (cb) => ipcRenderer.on('state:changed', () => cb()),
   onCatalogChanged: (cb) => ipcRenderer.on('catalog:changed', (_, p) => cb(p)),

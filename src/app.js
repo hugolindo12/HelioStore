@@ -269,7 +269,7 @@ function renderLibrary() {
   if (!jobs.length && !ids.length) html += '<div class="empty"><strong>Biblioteca vazia</strong>Os apps que você instalar aparecem aqui e no dock.</div>';
   el.innerHTML = html;
 }
-const jobText = (j) => (j.phase === 'installing' ? 'Instalando…' : `${j.percent >= 0 ? j.percent + '% · ' : ''}${fmtBytes(j.received)}${j.total ? ' de ' + fmtBytes(j.total) : ''} · ${fmtBytes(j.speed)}/s`);
+const jobText = (j) => (j.phase === 'queued' ? 'Na fila…' : j.phase === 'installing' ? 'Instalando…' : `${j.percent >= 0 ? j.percent + '% · ' : ''}${fmtBytes(j.received)}${j.total ? ' de ' + fmtBytes(j.total) : ''} · ${fmtBytes(j.speed)}/s`);
 function updateJobRow(id) {
   const j = S.jobs[id]; if (!j) return;
   const t = $(`[data-job-txt="${CSS.escape(id)}"]`), b = $(`[data-job-bar="${CSS.escape(id)}"]`);
@@ -483,7 +483,8 @@ async function initSelf() {
 const PROF_COLORS = ['#0a84ff', '#30d158', '#ff9f0a', '#ff453a', '#bf5af2', '#64d2ff'];
 function profAvatar(size) {
   const p = S.settings.profile || {};
-  if (S.account?.avatar) return `<img src="${esc(S.account.avatar)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%">`;
+  const pic = S.account?.avatar || S.google?.picture;
+  if (pic) return `<img src="${esc(pic)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%">`;
   return `<span class="prof-av" style="width:${size}px;height:${size}px;background:${esc(p.color || PROF_COLORS[0])};font-size:${Math.round(size * .44)}px">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</span>`;
 }
 function profileHTML() {
@@ -496,8 +497,8 @@ function profileHTML() {
       <div class="acct-btns" style="margin-top:12px"><button class="btn primary" data-prof-save>${p ? 'Salvar' : 'Criar perfil'}</button>
         ${p ? '<button class="btn" data-prof-cancel>Cancelar</button><button class="btn" data-prof-del>Excluir perfil</button>' : ''}</div></div>`;
   }
-  return `<div class="acct in">${profAvatar(44)}<div class="acct-who"><b>${esc(p.name)}</b><span>${S.account ? 'GitHub @' + esc(S.account.login) : 'Perfil neste computador'}</span></div>
-    <button class="btn" data-prof-edit>Editar</button>${S.account ? '<button class="btn" data-acct-logout>Desvincular GitHub</button>' : ''}</div>`;
+  return `<div class="acct in">${profAvatar(44)}<div class="acct-who"><b>${esc(p.name)}</b><span>${S.account ? 'GitHub @' + esc(S.account.login) : S.google ? 'Google · ' + esc(S.google.email) : 'Perfil neste computador'}</span></div>
+    <button class="btn" data-prof-edit>Editar</button>${S.account && S.google ? '<button class="btn" data-acct-logout>Desvincular GitHub</button>' : ''}<button class="btn" data-signout>Sair</button></div>`;
 }
 
 // ───────────── Verificar o repositório antes de publicar ─────────────
@@ -609,8 +610,53 @@ function readmeTemplate() {
   return `# ${n}\n\n${t}\n\n${MF.description || 'Descreva o que o app faz e para quem ele é.'}\n\n## Instalação\n\nBaixe o instalador na aba **Releases** ou instale pela Helio Store.\n\n## Recursos\n\n- \n- \n\n## Capturas de tela\n\n![Tela principal](screenshots/1.png)\n\n## Licença\n\nMIT\n`; // i18n-ignore
 }
 
+// ───────────── Acessibilidade: teclado e leitor de tela ─────────────
+(function a11yInit() {
+  const SEL = '.card[data-open], .feat[data-open], .rank-row[data-open], .row[data-open]';
+  let raf = 0;
+  const pass = () => {
+    raf = 0;
+    document.querySelectorAll(SEL).forEach((e) => { if (!e.hasAttribute('tabindex')) e.tabIndex = 0; if (!e.hasAttribute('role')) e.setAttribute('role', 'button'); });
+    document.querySelectorAll('button[title]:not([aria-label])').forEach((b) => b.setAttribute('aria-label', b.getAttribute('title')));
+  };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(pass); };
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.(SEL)) { e.preventDefault(); e.target.click(); }
+  });
+  schedule();
+})();
+
+// ───────────── Diagnóstico e versões anteriores ─────────────
+async function openDiag() {
+  openModalHTML(`<h2>Diagnóstico</h2><p class="sub" style="margin:4px 0 12px">Versão, sistema e últimos eventos da loja.</p><pre id="diag-pre" class="diag-pre">…</pre>
+    <div class="ed-foot"><button class="btn" data-diag-copy>${ICON.copy} Copiar</button><span class="grow"></span><button class="btn primary" data-modal-close>Fechar</button></div>`);
+  try { const t = await window.helio.diag(); const pre = $('#diag-pre'); if (pre) pre.textContent = t; } catch (e) { const pre = $('#diag-pre'); if (pre) pre.textContent = cleanErr(e); }
+}
+async function loadVersions(id) {
+  const a = byId(id), box = $('#d-vers'); if (!a?.source?.repo || !box) return;
+  box.innerHTML = '<em class="sub">Carregando…</em>';
+  try {
+    const list = await window.helio.github.versions(a.source.repo), cur = S.installed[id]?.version;
+    box.innerHTML = (S.installed[id]?.pinned ? '<p class="sub" style="margin:0 0 8px">Você instalou uma versão antiga: a atualização automática não mexe neste app. Clique em Atualizar para ir para a mais nova.</p>' : '') +
+      list.map((v) => `<div class="ver-row"><div><b>v${esc(v.version)}</b>${v.pre ? '<span class="tag">pré</span>' : ''}<span class="ver-d">${esc(new Date(v.date).toLocaleDateString(I18N.locale))} · ${v.sizeMB} MB</span>${v.notes ? `<p>${esc(v.notes.split('\n').find((l) => l.trim()) || '')}</p>` : ''}</div>
+        ${cur === v.version ? '<span class="tag">Instalado</span>' : `<button class="btn" data-vers-install="${esc(v.tag)}" data-vers-id="${esc(id)}" data-vers-ver="${esc(v.version)}">Instalar</button>`}</div>`).join('') || '<em class="sub">Sem Release</em>';
+  } catch (e) { box.innerHTML = `<div class="pub-msg error">${esc(cleanErr(e))}</div>`; }
+}
+async function installVersion(id, tag, ver) {
+  const a = byId(id); if (!a || S.jobs[id]) return;
+  if (!confirm(I18N.t('Instalar a v{0}? A atualização automática deixa de mexer neste app até você atualizar manualmente.').replace('{0}', ver))) return;
+  S.local.add(id); S.jobs[id] = { phase: 'downloading', percent: 0, received: 0, total: 0, speed: 0 };
+  refreshButtons(id); renderDock();
+  try {
+    const rec = await window.helio.github.installVersion(id, tag);
+    S.installed[id] = rec; toast(`${a.name} instalado`, `Versão ${rec.version} pronta para abrir.`, a);
+  } catch (e) { toast(`Falha ao instalar ${a.name}`, cleanErr(e), null, true); }
+  delete S.jobs[id]; S.local.delete(id); await reloadCatalog(false); renderDock(); render(); if (S.detailId === id) openDetail(id);
+}
+
 // ───────────── Conta do GitHub ─────────────
-function acctHTML() {
+function acctHTML(gate) {
   const A = S.auth, P = S.publish;
   if (S.account) {
     const have = new Set(S.apps.map((a) => (a.source?.repo || '').toLowerCase()));
@@ -624,7 +670,7 @@ function acctHTML() {
         : (!P.reposBusy && P.repos ? '<div class="empty" style="padding:14px 0;text-align:left">Nenhum repositório público encontrado.</div>' : '')}`;
   }
   const hasId = !!(S.settings.githubClientId || '').trim();
-  return `<div class="acct"><div class="acct-h"><b>Vincular o GitHub</b><span>Opcional. Mostra seus repositórios para adicionar com um clique e aumenta o limite de consultas.</span></div>
+  return `<div class="acct"><div class="acct-h"><b>${gate ? 'Entrar com o GitHub' : 'Vincular o GitHub'}</b><span>${gate ? 'Publique apps e veja seus repositórios para adicionar com um clique.' : 'Opcional. Mostra seus repositórios para adicionar com um clique e aumenta o limite de consultas.'}</span></div>
     ${A.device ? `<div class="acct-code"><span>Digite este código em github.com/login/device</span><code>${esc(A.device.user_code)}</code>
         <div class="acct-btns"><button class="btn primary" data-acct-open>Abrir github.com/login/device</button><button class="btn" data-acct-cancel>Cancelar</button></div><em>Aguardando a autorização…</em></div>`
     : `<div class="acct-btns">${hasId ? `<button class="btn primary" data-acct-device ${A.busy ? 'disabled' : ''}>${ICON.github} Entrar com o GitHub</button>` : ''}
@@ -651,8 +697,20 @@ window.helio.account?.onChanged(async (p) => {
   else { S.auth.device = null; S.auth.busy = false; S.auth.error = p.error || ''; if (S.view === 'publish') renderPublish(); }
 });
 
+const G = { waiting: false, error: '' };
+function loginGate(el) {
+  const hasG = !!(S.settings.googleClientId || '').trim();
+  el.innerHTML = `<div class="creator-head"><h1 class="title">Helio Creator</h1><button class="btn" data-guide>${ICON.help} Como funciona</button></div>
+    <p class="sub">Entre com o GitHub ou com o Google para usar o Helio Creator.</p>
+    <div class="login-grid">${acctHTML(true)}
+      <div class="acct"><div class="acct-h"><b>Entrar com o Google</b><span>Identifica você no Helio Creator. Não dá acesso ao seu GitHub.</span></div>
+        ${hasG ? `<div class="acct-btns"><button class="btn primary" data-google-login ${G.waiting ? 'disabled' : ''}>Entrar com o Google</button>${G.waiting ? '<button class="btn" data-google-cancel>Cancelar</button>' : ''}</div>${G.waiting ? '<em class="acct-note">Termine o login na janela do navegador que abriu.</em>' : ''}`
+          : `<p class="acct-note">Para entrar com o Google, informe o Client ID de um app OAuth do Google em Ajustes.</p><div class="acct-btns"><button class="btn" data-goto-settings>Abrir Ajustes</button></div>`}
+        ${G.error ? `<div class="pub-msg error">${esc(G.error)}</div>` : ''}</div></div>`;
+}
 function renderPublish() {
   const el = $('#view-publish'), P = S.publish;
+  if (!S.account && !S.google) return loginGate(el);
   const mine = S.apps.filter((a) => a.mine);
   const res = P.resultId && byId(P.resultId);
   const hint = pubHint(P.input);
@@ -841,6 +899,9 @@ function renderSettings() {
       <div class="ctl"><input type="password" id="set-token" placeholder="ghp_…" value="${esc(s.githubToken || '')}"><button class="btn" id="save-token">Salvar</button></div></div>
     <div class="set-row"><div><h4>Client ID do GitHub</h4><p>Para entrar com código no Helio Creator. Crie um app OAuth em github.com/settings/developers e ative o “Device Flow”.</p></div>
       <div class="ctl"><input type="text" id="set-clientid" placeholder="Iv1.…" value="${esc(s.githubClientId || '')}" spellcheck="false"><button class="btn" id="save-clientid">Salvar</button></div></div>
+    <div class="set-row"><div><h4>Client ID do Google</h4><p>Para entrar com o Google no Helio Creator. Crie em console.cloud.google.com, em Credenciais, um “ID do cliente OAuth” do tipo “App para computador”.</p></div>
+      <div class="ctl"><input type="text" id="set-gid" placeholder="….apps.googleusercontent.com" value="${esc(s.googleClientId || '')}" spellcheck="false"><input type="password" id="set-gsecret" placeholder="Client secret" value="${esc(s.googleClientSecret || '')}" spellcheck="false"><button class="btn" id="save-gid">Salvar</button></div></div>
+    <div class="set-row"><div><h4>Diagnóstico</h4><p>Versão, sistema e últimos eventos da loja. Copie e envie junto com o feedback quando algo der errado.</p></div><button class="btn" data-diag>Ver diagnóstico</button></div>
     <div class="set-row"><div><h4>Atualizações da loja</h4><p id="self-status">${esc(selfText())}</p></div><div class="ctl">${S.self?.status === 'available' ? '<button class="btn primary" data-self-install>Atualizar agora</button>' : ''}<button class="btn" id="self-check">Verificar</button></div></div>
     <div class="set-row"><div><h4>Repositório da Helio Store</h4><p>Repositório no GitHub (dono/nome) onde você publica os Releases da própria loja.</p></div>
       <div class="ctl"><input type="text" id="set-selfrepo" placeholder="${esc(S.self?.repo || 'usuario/heliostore')}" value="${esc(s.selfRepo || '')}" spellcheck="false"><button class="btn" id="save-selfrepo">Salvar</button></div></div>
@@ -881,6 +942,7 @@ function openDetail(id) {
     <h3>Sobre</h3><div class="txt">${esc(tx(a, 'description') || tx(a, 'tagline'))}</div>
     ${a.features?.length ? `<h3>Destaques</h3><ul>${txFeatures(a).map((f) => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
     ${a.changelog ? `<h3>Novidades da v${esc(a.version)}</h3><div class="txt">${esc(tx(a, 'changelog'))}</div>` : ''}
+    ${a.source?.repo ? `<h3>Versões</h3><div class="vers" id="d-vers"><button class="btn" data-vers-load="${esc(id)}">Ver versões anteriores</button></div>` : ''}
     ${a.community ? '<div class="warn">App da comunidade, publicado por terceiros. Instale apenas se você confia no autor.</div>' : ''}`;
   const d = $('#detail'); d.classList.add('open'); d.setAttribute('aria-hidden', 'false');
   $('#detail-panel').scrollTop = keepScroll;
@@ -1012,9 +1074,9 @@ async function launch(id) {
 }
 async function uninstall(id) {
   const a = byId(id); if (!a) return;
-  await window.helio.uninstall(id);
+  const freed = await window.helio.uninstall(id);
   delete S.installed[id]; S.running.delete(id);
-  toast(`${a.name} removido`, 'O app foi desinstalado.', a);
+  toast(`${a.name} removido`, freed > 0 ? `O app foi desinstalado. Liberou ${fmtBytes(freed)}.` : 'O app foi desinstalado.', a);
   renderDock(); render(); if (S.detailId === id) openDetail(id);
 }
 
@@ -1033,6 +1095,7 @@ async function fetchAll() {
   applyTheme(); I18N.setLang(S.settings.lang || 'auto');
   try { S.running = new Set((await window.helio.running?.()) || []); } catch {}
   try { S.account = (await window.helio.account?.get()) || null; } catch {}
+  try { S.google = (await window.helio.google?.get()) || null; } catch {}
   document.documentElement.classList.toggle('big-catalog', S.apps.length > 150);
   refreshNewsDot();
   applyDockPrefs();
@@ -1197,6 +1260,28 @@ document.addEventListener('click', async (e) => {
   if (t('#open-news')) return openNews(false);
   if (t('#self-check')) { S.self = await window.helio.self.check(); renderSelf(); if (S.view === 'settings') renderSettings(); return; }
   if (t('#save-selfrepo')) { S.settings = await window.helio.settings.set({ selfRepo: $('#set-selfrepo').value.trim() }); toast('Repositório salvo', 'Clique em Verificar para checar atualizações da loja.'); return; }
+  if (t('[data-google-login]')) {
+    G.waiting = true; G.error = ''; renderPublish();
+    try {
+      S.google = await window.helio.google.login();
+      if (!S.settings.profile) S.settings = await window.helio.settings.set({ profile: { name: S.google.name, color: PROF_COLORS[0] } });
+      toast('Conectado ao Google', S.google.email);
+    } catch (e) { const m = cleanErr(e); if (!/Cancelado/.test(m)) G.error = m; }
+    G.waiting = false; return renderPublish();
+  }
+  if (t('[data-google-cancel]')) { window.helio.google.cancel(); return; }
+  if (t('[data-goto-settings]')) return document.querySelector('[data-view="settings"]')?.click();
+  if (t('[data-signout]')) {
+    try { await window.helio.account.logout(); await window.helio.google.logout(); } catch {}
+    S.account = null; S.google = null; S.publish.repos = null; S.publish.allRepos = false;
+    try { S.settings = (await window.helio.state()).settings; } catch {}
+    toast('Sessão encerrada', 'Entre de novo para usar o Helio Creator.'); return renderPublish();
+  }
+  if (t('#save-gid')) { S.settings = await window.helio.settings.set({ googleClientId: $('#set-gid').value.trim(), googleClientSecret: $('#set-gsecret').value.trim() }); return toast('Client ID salvo', 'Agora dá para entrar com o Google no Helio Creator.'); }
+  if (t('[data-diag]')) return openDiag();
+  if (t('[data-diag-copy]')) { await copyText($('#diag-pre')?.textContent || ''); return toast('Diagnóstico copiado', 'Cole na mensagem de feedback.'); }
+  if ((el = t('[data-vers-load]'))) return loadVersions(el.dataset.versLoad);
+  if ((el = t('[data-vers-install]'))) return installVersion(el.dataset.versId, el.dataset.versInstall, el.dataset.versVer);
   if (t('#save-clientid')) { S.settings = await window.helio.settings.set({ githubClientId: $('#set-clientid').value.trim() }); return toast('Client ID salvo', 'Agora dá para entrar com código no Helio Creator.'); }
   if (t('#save-token')) { S.settings = await window.helio.settings.set({ githubToken: $('#set-token').value.trim() }); return toast('Token salvo', 'Usado nas próximas consultas ao GitHub.'); }
   if (t('#reload-catalog')) { await reloadCatalog(); return toast('Catálogo recarregado', `${S.apps.length} apps disponíveis`); }

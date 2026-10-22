@@ -74,6 +74,7 @@ function loadState() {
     const def = defaultState();
     const st = { ...def, ...raw, settings: { ...def.settings, ...(raw.settings || {}) } };
     // token do GitHub guardado criptografado (DPAPI no Windows); tokens antigos em texto continuam valendo
+    for (const k of ['googleClientSecret']) if (st.settings[k + 'Enc']) { try { st.settings[k] = safeStorage.decryptString(Buffer.from(st.settings[k + 'Enc'], 'base64')); } catch { st.settings[k] = ''; } delete st.settings[k + 'Enc']; }
     if (st.settings.githubTokenEnc) {
       try { st.settings.githubToken = safeStorage.decryptString(Buffer.from(st.settings.githubTokenEnc, 'base64')); } catch { st.settings.githubToken = ''; st.account = null; } // não deu para ler o token (outro usuário/PC): pede para entrar de novo
     }
@@ -84,13 +85,26 @@ function loadState() {
   }
 }
 let state = null;
-process.on('unhandledRejection', (e) => console.error('Erro não tratado:', e));
+// Registro de eventos (userData/helio.log, até ~200 KB): ajuda a achar o que deu errado sem depender de descrição
+const logPath = () => path.join(app.getPath('userData'), 'helio.log');
+function logf(msg) {
+  try {
+    const f = logPath();
+    try { if (fs.statSync(f).size > 200 * 1024) fs.renameSync(f, f + '.old'); } catch {}
+    fs.appendFileSync(f, `${new Date().toISOString()} ${String(msg).replace(/\s+/g, ' ').slice(0, 500)}\n`);
+  } catch {}
+}
+process.on('unhandledRejection', (e) => { console.error('Erro não tratado:', e); logf('unhandledRejection: ' + (e && e.message || e)); });
+process.on('uncaughtException', (e) => { logf('uncaughtException: ' + (e && e.stack || e)); console.error(e); });
 function saveState() {
   fs.mkdirSync(path.dirname(statePath()), { recursive: true });
   let out = state;
   try {
     if (state.settings.githubToken && safeStorage.isEncryptionAvailable()) {
       out = { ...state, settings: { ...state.settings, githubToken: '', githubTokenEnc: safeStorage.encryptString(state.settings.githubToken).toString('base64') } };
+    }
+    if (state.settings.googleClientSecret && safeStorage.isEncryptionAvailable()) {
+      out = { ...out, settings: { ...out.settings, googleClientSecret: '', googleClientSecretEnc: safeStorage.encryptString(state.settings.googleClientSecret).toString('base64') } };
     }
   } catch {}
   // gravação atômica: escreve num arquivo temporário e troca; a versão anterior vira .bak
@@ -521,6 +535,65 @@ async function loadCatalog() {
   return { apps: [...map.values()], featured: remote.featured || local.featured || [], remoteError, cached };
 }
 
+// ───────────────────── Conta do Google (só identifica a pessoa) ─────────────────────
+// Fluxo "app instalado" do Google: abre o navegador, recebe o código numa porta local (127.0.0.1) e troca por um token com PKCE.
+// Guardamos só nome, e-mail e foto; o token do Google é descartado logo depois.
+let googleJob = null;
+const b64url = (b) => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function loginGoogle() {
+  const clientId = String(state.settings.googleClientId || '').trim(), secret = String(state.settings.googleClientSecret || '').trim();
+  if (!clientId) throw new Error('Informe o Client ID do Google em Ajustes para entrar com o Google.');
+  if (googleJob) googleJob.cancel();
+  const crypto = require('crypto');
+  const verifier = b64url(crypto.randomBytes(32)), challenge = b64url(crypto.createHash('sha256').update(verifier).digest()), st = b64url(crypto.randomBytes(16));
+  const job = googleJob = { server: null, timer: null, cancel() { clearTimeout(this.timer); try { this.server?.close(); } catch {} if (googleJob === this) googleJob = null; this.fail?.(new Error('Cancelado')); } };
+  const code = await new Promise((resolve, reject) => {
+    job.fail = reject;
+    job.server = http.createServer((req, res) => {
+      const u = new URL(req.url, 'http://127.0.0.1');
+      if (u.pathname !== '/callback') { res.writeHead(404); return res.end(); }
+      const ok = u.searchParams.get('state') === st && u.searchParams.get('code');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`<!doctype html><meta charset="utf-8"><title>Helio Store</title><body style="font:16px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#111;color:#eee"><p>${ok ? 'Pronto! Pode fechar esta janela e voltar para a Helio Store.' : 'Não foi possível entrar. Volte para a Helio Store e tente de novo.'}</p>`);
+      clearTimeout(job.timer); job.server.close();
+      ok ? resolve(u.searchParams.get('code')) : reject(new Error(u.searchParams.get('error') || 'Login negado no Google.'));
+    });
+    job.server.on('error', reject);
+    job.server.listen(0, '127.0.0.1', () => {
+      job.redirect = `http://127.0.0.1:${job.server.address().port}/callback`;
+      const q = new URLSearchParams({ client_id: clientId, redirect_uri: job.redirect, response_type: 'code', scope: 'openid email profile', code_challenge: challenge, code_challenge_method: 'S256', state: st, prompt: 'select_account' });
+      shell.openExternal('https://accounts.google.com/o/oauth2/v2/auth?' + q.toString());
+    });
+    job.timer = setTimeout(() => { try { job.server.close(); } catch {} reject(new Error('Tempo esgotado esperando o login do Google.')); }, 3 * 60 * 1000);
+  }).finally(() => { clearTimeout(job.timer); if (googleJob === job) googleJob = null; });
+  const body = new URLSearchParams({ code, client_id: clientId, redirect_uri: job.redirect, grant_type: 'authorization_code', code_verifier: verifier });
+  if (secret) body.set('client_secret', secret);
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.id_token) throw new Error(`O Google recusou o login (${j.error_description || j.error || 'HTTP ' + r.status}).`);
+  const claims = JSON.parse(Buffer.from(String(j.id_token).split('.')[1], 'base64').toString('utf8')); // veio direto do Google por HTTPS
+  if (claims.aud !== clientId || String(claims.iss).replace(/^https:\/\//, '') !== 'accounts.google.com') throw new Error('Resposta do Google inesperada.');
+  state.google = { name: String(claims.name || claims.email || 'Google').slice(0, 80), email: String(claims.email || ''), picture: /^https:\/\//.test(claims.picture || '') ? claims.picture : '', at: Date.now() };
+  saveState(); logf('login Google ok');
+  return state.google;
+}
+function logoutGoogle() { googleJob?.cancel(); state.google = null; saveState(); }
+
+// ───────────────────── Diagnóstico ─────────────────────
+async function diagText() {
+  let tail = ''; try { tail = fs.readFileSync(logPath(), 'utf8').trim().split('\n').slice(-60).join('\n'); } catch {}
+  const free = await freeBytes(state.settings.installDir);
+  return [
+    `Helio Store v${app.getVersion()} (${app.isPackaged ? 'instalada' : 'dev'})`,
+    `Electron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}`,
+    `Windows/SO: ${require('os').release()} ${process.arch} · idioma do sistema: ${app.getLocale()} · idioma da loja: ${state.settings.lang || 'auto'}`, // i18n-ignore
+    `Pasta de instalação: ${state.settings.installDir} (${Number.isFinite(free) ? Math.floor(free / 1048576) + ' MB livres' : 'espaço desconhecido'})`, // i18n-ignore
+    `Apps instalados: ${Object.keys(state.installed || {}).length} · atualização da loja: ${selfUpd.status}${selfUpd.version ? ' → v' + selfUpd.version : ''}${selfUpd.error ? ' (' + selfUpd.error + ')' : ''}`, // i18n-ignore
+    `Conta: GitHub ${state.account ? '@' + state.account.login : 'não'} · Google ${state.google ? 'sim' : 'não'}`,
+    '', '--- últimos eventos ---', tail || '(sem eventos)', // i18n-ignore
+  ].join('\n');
+}
+
 // ───────────────────── Conta do GitHub ─────────────────────
 let deviceJob = null;
 async function finishLogin(token) {
@@ -648,6 +721,7 @@ function selfRepoName() {
 function checkPendingSelf() {
   const p = state.pendingSelf; if (!p) return;
   delete state.pendingSelf; saveState();
+  logf(`self-update: ao reabrir estava na v${app.getVersion()}, esperado v${p.to}`); // i18n-ignore
   if (vNewer(p.to, app.getVersion()) && Date.now() - p.at < 24 * 3600e3) setSelf({ lastFail: `A atualização para a v${p.to} não foi concluída (a loja continua na v${app.getVersion()}).` });
   else setSelf({ lastFail: '' });
 }
@@ -686,6 +760,7 @@ async function installSelfUpdate() {
   if (!app.isPackaged) throw new Error('A atualização da loja só funciona na versão instalada (não com npm start).');
   if (selfUpd.status !== 'available' || !selfAsset) await checkSelfUpdate(true);
   if (selfUpd.status !== 'available' || !selfAsset) throw new Error(selfUpd.error || 'Nenhuma atualização disponível.');
+  logf(`self-update: baixando ${selfAsset.name} (v${selfUpd.version})`);
   setSelf({ status: 'downloading', percent: 0, error: '' });
   const dest = path.join(app.getPath('temp'), selfAsset.name);
   try {
@@ -695,14 +770,16 @@ async function installSelfUpdate() {
       throw new Error('O instalador baixado não confere com o SHA-256 publicado no GitHub. A atualização foi cancelada.');
     }
   } catch (e) {
+    logf('self-update: falhou antes de instalar: ' + e.message); // i18n-ignore
     setSelf({ status: 'available', percent: 0, error: e.message });
     throw e;
   }
   setSelf({ status: 'installing', percent: 100 });
   // /S = silencioso; --updated e --force-run (electron-builder/NSIS) reabrem a loja ao terminar
+  logf(`self-update: abrindo o instalador (sha256 ${selfAsset.sha256 ? 'conferido' : 'não publicado'})`);
   state.pendingSelf = { to: selfUpd.version, from: app.getVersion(), at: Date.now() }; saveState(); // se depois de reabrir a versão for a mesma, a atualização falhou
   const child = spawn(dest, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore' });
-  child.on('error', (e) => { isQuitting = false; delete state.pendingSelf; saveState(); setSelf({ status: 'available', percent: 0, error: `O Windows não deixou abrir o instalador (${e.code || e.message}). Se o antivírus bloqueou, baixe e instale manualmente.` }); });
+  child.on('error', (e) => { logf('self-update: erro ao abrir o instalador: ' + (e.code || e.message)); isQuitting = false; delete state.pendingSelf; saveState(); setSelf({ status: 'available', percent: 0, error: `O Windows não deixou abrir o instalador (${e.code || e.message}). Se o antivírus bloqueou, baixe e instale manualmente.` }); }); // i18n-ignore
   child.unref();
   setTimeout(() => { isQuitting = true; app.quit(); }, 600);
   return true;
@@ -714,7 +791,7 @@ async function autoUpdateInstalled() {
   const done = [];
   for (const a of cat.apps) {
     const rec = state.installed[a.id];
-    if (!rec || rec.type !== 'zip' || rec.version === a.version) continue;
+    if (!rec || rec.type !== 'zip' || rec.version === a.version || rec.pinned) continue;
     if (running.has(a.id) || activeJobs.has(a.id)) continue; // em uso: tenta de novo na próxima checagem
     try { await installApp(a); done.push(a.name); } catch {}
   }
@@ -746,7 +823,37 @@ function autoFindExe(dir, appName = '') {
   return found[0]?.full || null;
 }
 
+async function freeBytes(dir) {
+  try { await fsp.mkdir(dir, { recursive: true }); const st = await fsp.statfs(dir); return Number(st.bavail) * Number(st.bsize); } catch { return Infinity; }
+}
+async function checkSpace(appInfo) {
+  const need = Math.max(120, (appInfo.sizeMB || 40) * 2.5) * 1024 * 1024; // download + extração
+  const dirs = [...new Set([state.settings.installDir, app.getPath('temp')])];
+  for (const d of dirs) {
+    const free = await freeBytes(d);
+    if (free < need) throw new Error(`Sem espaço em disco: precisa de uns ${Math.ceil(need / 1048576)} MB livres e só há ${Math.floor(free / 1048576)} MB.`);
+  }
+}
+// Fila: no máximo 2 instalações ao mesmo tempo; as demais esperam (e podem ser canceladas)
+const MAX_PAR = 2; let activeSlots = 0; const queue = [];
+const queued = new Map();
 async function installApp(appInfo) {
+  const { id } = appInfo;
+  if (!validId(id)) throw new Error('Esse app tem um identificador inválido e não pode ser instalado.');
+  if (activeJobs.has(id) || queued.has(id)) throw new Error('Instalação já em andamento');
+  if (activeSlots >= MAX_PAR) {
+    send('install:progress', { id, phase: 'queued', percent: 0 });
+    await new Promise((resolve, reject) => {
+      const job = { cancel: () => { const i = queue.indexOf(job); if (i >= 0) queue.splice(i, 1); queued.delete(id); reject(new Error('Cancelado')); }, go: () => { queued.delete(id); resolve(); } };
+      queued.set(id, job); queue.push(job);
+    });
+  }
+  activeSlots++;
+  try { return await installNow(appInfo); }
+  catch (e) { logf(`instalar ${id}: ${e.message}`); throw e; }
+  finally { activeSlots--; queue.shift()?.go(); }
+}
+async function installNow(appInfo) {
   const { id, name, version } = appInfo;
   const dl = appInfo.download || {};
   if (!validId(id)) throw new Error('Esse app tem um identificador inválido e não pode ser instalado.');
@@ -777,6 +884,7 @@ async function installApp(appInfo) {
     }
 
     if (running.has(id)) throw new Error(`Feche ${name} antes de atualizar ou reinstalar.`);
+    await checkSpace(appInfo);
 
     const tmpDir = path.join(app.getPath('temp'), 'helio-store');
     await fsp.mkdir(tmpDir, { recursive: true });
@@ -925,8 +1033,10 @@ function refreshShortcuts(id) {
 
 async function uninstallApp(id) {
   const rec = state.installed[id];
-  if (!rec) return;
+  if (!rec) return 0;
+  let freed = 0;
   if (rec.type === 'zip' && rec.path) {
+    freed = (await dirSize(rec.path)) + (await dirSize(rec.path + '.anterior'));
     await fsp.rm(rec.path, { recursive: true, force: true });
     await fsp.rm(rec.path + '.anterior', { recursive: true, force: true }).catch(() => {});
   } else if (rec.uninstall && fs.existsSync(rec.uninstall)) {
@@ -941,6 +1051,8 @@ async function uninstallApp(id) {
   for (const w of SC_WHERE) if (rec.shortcuts?.[w]) removeShortcut(id, w);
   delete state.installed[id];
   saveState();
+  logf(`desinstalado ${id}${freed ? ' (' + Math.round(freed / 1048576) + ' MB)' : ''}`);
+  return freed;
 }
 
 // ───────────── Apps em execução ─────────────
@@ -1253,7 +1365,7 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('app:install', (_, info) => installApp(info));
-  ipcMain.handle('app:cancel', (_, id) => { activeJobs.get(id)?.cancel(); });
+  ipcMain.handle('app:cancel', (_, id) => { (queued.get(id) || activeJobs.get(id))?.cancel(); });
   ipcMain.handle('app:uninstall', (_, id) => uninstallApp(id));
   ipcMain.handle('app:rollback', (_, id) => rollbackApp(id));
   ipcMain.handle('app:sizes', () => appSizes());
@@ -1277,6 +1389,21 @@ app.whenReady().then(() => {
     const p = gh.parseRepo(repo); if (!p) throw new Error('Link inválido');
     return gh.releaseStats(p.owner, p.repo, state.settings.githubToken);
   });
+  ipcMain.handle('github:versions', (_, repo) => { const p = gh.parseRepo(repo); if (!p) throw new Error('Link inválido'); return gh.listVersions(p.owner, p.repo, state.settings.githubToken); });
+  ipcMain.handle('github:installVersion', async (_, id, tag) => {
+    const repo = (state.userApps?.[id]?.source?.repo) || (await loadCatalog()).apps.find((a) => a.id === id)?.source?.repo;
+    if (!repo) throw new Error('App não encontrado');
+    const entry = await gh.resolveRepo(repo, { token: state.settings.githubToken, tag: String(tag) });
+    const rec = await installApp({ ...entry, id, community: true });
+    const latest = await gh.latestTag(repo, state.settings.githubToken).catch(() => null);
+    if (state.installed[id] && latest && latest !== state.installed[id].version) { state.installed[id].pinned = true; saveState(); } // versão antiga escolhida: a atualização automática não a sobrescreve
+    return state.installed[id] || rec;
+  });
+  ipcMain.handle('google:get', () => state.google || null);
+  ipcMain.handle('google:login', () => loginGoogle());
+  ipcMain.handle('google:cancel', () => googleJob?.cancel());
+  ipcMain.handle('google:logout', () => logoutGoogle());
+  ipcMain.handle('diag:get', () => diagText());
   ipcMain.handle('self:get', () => setSelf({}));
   ipcMain.handle('self:check', () => checkSelfUpdate(true));
   ipcMain.handle('self:install', () => installSelfUpdate());

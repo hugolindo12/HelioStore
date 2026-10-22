@@ -46,6 +46,14 @@ A loja fala **português, inglês, espanhol, francês, alemão, italiano, japon�
 - **Texto novo na interface:** escreva em português no código e adicione a frase como chave em `src/i18n.js` (inglês e espanhol) e em `src/lang/*.js` (demais idiomas). Rode `npm run i18n`: ele lista tudo que está sem tradução (`--strict` exige todos os idiomas; o GitHub roda essa checagem a cada envio).
 - **Textos dos apps** (descrição, novidades): são traduzidos sozinhos para o idioma de cada pessoa, com cache. Quem publica pode controlar a tradução com um bloco `i18n` no `helio.json` (o Helio Creator gera esse bloco no botão *Traduzir para todos os idiomas*).
 
+## Entrar no Helio Creator
+
+O Helio Creator pede login com o **GitHub** ou com o **Google** (o login é uma barreira de uso da interface, não uma proteção de segurança: o app roda no seu computador).
+
+- **GitHub:** cole um token (`github.com/settings/tokens`) ou, para entrar por código, informe em Ajustes o *Client ID* de um app OAuth com o “Device Flow” ativado.
+- **Google:** em `console.cloud.google.com`, crie em *Credenciais* um “ID do cliente OAuth” do tipo **App para computador** e coloque o Client ID (e o secret, se o Google der um) em Ajustes. A loja usa o fluxo com PKCE e guarda só nome, e-mail e foto.
+- Em Ajustes há também **Diagnóstico** (versão, sistema e últimos eventos) para anexar quando algo der errado.
+
 ## English
 
 Helio Store is a minimalist Windows app store. Publish any app by pasting its GitHub link: the store reads the latest Release, verifies the SHA-256, installs it and keeps it updated, with one-click rollback. Includes a floating macOS-style dock, a local creator profile with optional GitHub sign-in, dark/light themes and PT/EN/ES.

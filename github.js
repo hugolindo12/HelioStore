@@ -123,6 +123,16 @@ async function releaseStats(owner, repo, token) {
   }));
 }
 
+// Releases antigos que têm arquivo instalável (para instalar uma versão específica)
+async function listVersions(owner, repo, token) {
+  const all = await api(`/repos/${owner}/${repo}/releases?per_page=20`, token);
+  if (!all) throw new Error('Repositório não encontrado (ou é privado).');
+  return all.filter((r) => !r.draft && pickAsset(r.assets)).map((r) => ({
+    tag: r.tag_name, version: String(r.tag_name).replace(/^v/i, ''), date: r.published_at, pre: !!r.prerelease,
+    notes: String(r.body || '').trim().slice(0, 300), sizeMB: Math.max(1, Math.round(pickAsset(r.assets).size / MB)),
+  }));
+}
+
 // ───────── Extras: categoria por tópicos, ícone/capturas na árvore, README ─────────
 const TOPIC_CATS = [
   [/^(game|games|gaming|jogo|jogos|gamedev)$/, 'Jogos'],
@@ -200,14 +210,14 @@ function cleanI18n(raw) {
   return Object.keys(out).length ? out : undefined;
 }
 
-async function resolveRepo(input, { token } = {}) {
+async function resolveRepo(input, { token, tag } = {}) {
   const p = parseRepo(input);
   if (!p) throw new Error('Link inválido. Use algo como https://github.com/usuario/meu-app');
   const { owner, repo } = p;
 
   const info = await api(`/repos/${owner}/${repo}`, token);
   if (!info) throw new Error('Repositório não encontrado (ou é privado).');
-  const rel = await fetchRelease(info.owner.login, info.name, token);
+  const rel = tag ? await api(`/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(tag)}`, token) : await fetchRelease(info.owner.login, info.name, token);
   if (!rel) throw new Error('Esse repositório ainda não tem nenhum Release. Publique um Release no GitHub anexando o .zip ou .exe do app.');
 
   const rawBase = `https://raw.githubusercontent.com/${info.full_name}/${info.default_branch}/`;
@@ -350,4 +360,4 @@ async function listMyRepos(token) {
 }
 
 const _resetNet = () => { limitedUntil = 0; offlineUntil = 0; }; // usado nos testes
-module.exports = { releaseStats, cleanI18n, _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };
+module.exports = { listVersions, releaseStats, cleanI18n, _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };
