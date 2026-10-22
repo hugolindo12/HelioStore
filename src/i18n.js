@@ -258,6 +258,8 @@
   "Perfil de criador e login opcional com o GitHub.": "Creator profile and optional GitHub login.",
   "Feedback: envie ideias e problemas direto pela loja.": "Feedback: send ideas and problems straight from the store.",
   "Mais segurança, estabilidade e velocidade.": "More security, stability and speed.",
+      "Atualizar os apps automaticamente": "Update apps automatically",
+  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Downloads and installs new versions of your apps as soon as they are found.",
       'https://github.com/usuario/meu-app': 'https://github.com/user/my-app', '__mil': 'k', '__mi': 'M',
     },
     es: {
@@ -513,6 +515,8 @@
   "Perfil de criador e login opcional com o GitHub.": "Perfil de creador e inicio de sesión opcional con GitHub.",
   "Feedback: envie ideias e problemas direto pela loja.": "Feedback: envía ideas y problemas directo desde la tienda.",
   "Mais segurança, estabilidade e velocidade.": "Más seguridad, estabilidad y velocidad.",
+      "Atualizar os apps automaticamente": "Actualizar las apps automáticamente",
+  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Descarga e instala las versiones nuevas de tus apps en cuanto se encuentran.",
       'https://github.com/usuario/meu-app': 'https://github.com/usuario/mi-app', '__mil': ' mil', '__mi': ' M',
     },
     pt: { '__mil': ' mil', '__mi': ' mi' },

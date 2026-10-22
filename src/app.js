@@ -639,6 +639,7 @@ function renderSettings() {
     <div class="set-row"><div><h4>Atualizações da loja</h4><p id="self-status">${esc(selfText())}</p></div><div class="ctl">${S.self?.status === 'available' ? '<button class="btn primary" data-self-install>Atualizar agora</button>' : ''}<button class="btn" id="self-check">Verificar</button></div></div>
     <div class="set-row"><div><h4>Repositório da Helio Store</h4><p>Repositório no GitHub (dono/nome) onde você publica os Releases da própria loja.</p></div>
       <div class="ctl"><input type="text" id="set-selfrepo" placeholder="${esc(S.self?.repo || 'usuario/heliostore')}" value="${esc(s.selfRepo || '')}" spellcheck="false"><button class="btn" id="save-selfrepo">Salvar</button></div></div>
+    <div class="set-row"><div><h4>Atualizar os apps automaticamente</h4><p>Baixa e instala as versões novas dos seus apps assim que forem encontradas.</p></div>${tg('autoUpdateApps')}</div>
     <div class="set-row"><div><h4>Atualizar a loja automaticamente</h4><p>Quando a loja está em segundo plano, ela baixa e instala as versões novas sozinha.</p></div><button class="toggle ${s.autoUpdateSelf !== false ? 'on' : ''}" data-toggle="autoUpdateSelf"></button></div>
     <div class="set-row"><div><h4>Feedback</h4><p>Conte uma ideia ou um problema. Abre uma página do GitHub com a mensagem pronta.</p></div><div class="ctl"><button class="btn" data-feedback>Enviar feedback</button><button class="btn" id="open-news">Novidades</button></div></div>
     <div class="set-row"><div><h4>Idioma</h4><p>Idioma da interface.</p></div>
@@ -828,6 +829,7 @@ async function fetchAll() {
   try { S.account = (await window.helio.account?.get()) || null; } catch {}
   document.documentElement.classList.toggle('big-catalog', S.apps.length > 150);
   refreshNewsDot();
+  if (S.settings.autoUpdateApps) updatesList().forEach((id) => install(id).catch(() => {}));
   applyDockPrefs();
   if (cat.remoteError) toast('Catálogo remoto indisponível', cat.remoteError, null, true);
 }
