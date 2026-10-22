@@ -499,3 +499,8 @@ html[data-theme="light"] .chk.c-ok i { color: #1a9a3c; } html[data-theme="light"
 .nw-app:hover { background: rgb(var(--w) / .1); }
 .nw-app b { display: block; font-size: 13px; } .nw-app span { font-size: 12px; color: var(--muted); }
 .fb-text { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgb(var(--w) / .05); color: var(--text); font: inherit; font-size: 13px; }
+
+.lib-chg { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.fb-stars { display: flex; gap: 2px; margin: 0 0 10px; }
+.fb-stars .star { font-size: 24px; line-height: 1; color: var(--muted); opacity: .45; transition: .15s; }
+.fb-stars .star.on, .fb-stars .star:hover { color: #ffb020; opacity: 1; }

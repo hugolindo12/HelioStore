@@ -1,5 +1,9 @@
 # ☀️ Helio Store
 
+![Explorar](docs/screenshots/1-explorar.png)
+![Detalhes](docs/screenshots/2-detalhes.png)
+![Biblioteca](docs/screenshots/3-biblioteca.png)
+
 **Uma loja de apps minimalista para Windows, onde qualquer pessoa publica um app colando o link do GitHub.**
 
 <!-- Quando tiver o GIF (15–20 s: dock, instalação e Helio Creator), salve em docs/demo.gif e troque esta linha por: ![Helio Store](docs/demo.gif) -->

@@ -180,7 +180,7 @@ function renderLibrary() {
       <div class="row-acts"><button class="btn sq" data-cancel="${esc(id)}" title="Cancelar">${ICON.x}</button></div></div>`; };
   const instRow = (id) => { const a = byId(id), r = S.installed[id], up = r.version !== a.version;
     return `<div class="row" data-open="${esc(id)}">${iconHTML(a, 44)}<div class="row-info"><h4>${esc(a.name)}${a.community ? '<span class="tag">Comunidade</span>' : ''}</h4>
-      <p>v${esc(r.version)}${up ? ` → v${esc(a.version)} disponível` : ''} · instalado em ${new Date(r.installedAt).toLocaleDateString(I18N.locale)}${S.sizes[id] ? ' · ' + fmtBytes(S.sizes[id]) : ''}</p></div>
+      <p>v${esc(r.version)}${up ? ` → v${esc(a.version)} disponível` : ''} · instalado em ${new Date(r.installedAt).toLocaleDateString(I18N.locale)}${S.sizes[id] ? ' · ' + fmtBytes(S.sizes[id]) : ''}</p>${up && a.changelog ? `<p class="lib-chg">${esc(a.changelog.split('\n').find((l) => l.trim()) || '').slice(0, 110)}</p>` : ''}</div>
       <div class="row-acts">${r.path ? `<button class="btn sq" data-folder="${esc(id)}" title="Abrir pasta">${ICON.folder}</button>` : ''}
       <button class="btn sq danger" data-uninstall="${esc(id)}" title="Desinstalar">${ICON.trash}</button>${getBtn(a)}</div></div>`; };
 
@@ -305,21 +305,22 @@ async function openNews(auto) {
     <h2>${auto && cur ? 'Novidades da Helio Store v' + esc(cur) : 'Novidades'}</h2>
     <p class="sub" style="margin:4px 0 16px">${auto ? 'A loja foi atualizada. Veja o que mudou.' : 'O que há de novo na loja e nos apps.'}</p>
     <div class="nw-body">${notes}
-      ${rec.length ? `<div class="nw-ver"><h4>Apps com novidades</h4><div class="nw-apps">${rec.map((a) => `<div class="nw-app" data-news-open="${esc(a.id)}">${iconHTML(a, 36)}<div><b>${esc(a.name)}</b><span>v${esc(a.version)} · ${esc(ago(a.meta.updatedAt))}</span></div></div>`).join('')}</div></div>` : ''}</div>
+      ${rec.length ? `<div class="nw-ver"><h4>Apps com novidades</h4><div class="nw-apps">${rec.map((a) => `<div class="nw-app" data-news-open="${esc(a.id)}">${iconHTML(a, 36)}<div><b>${esc(a.name)}</b><span>v${esc(a.version)} · ${esc(ago(a.meta.updatedAt))}${a.changelog ? ' · ' + esc((a.changelog.split('\n').find((l) => l.trim()) || '').replace(/^[#*\-\s]+/, '').slice(0, 60)) : ''}</span></div></div>`).join('')}</div></div>` : ''}</div>
     <div class="ed-foot"><button class="btn" data-feedback>Enviar feedback</button><span class="grow"></span><button class="btn primary" data-modal-close>Fechar</button></div>`;
   const m = $('#modal'); m.classList.add('open'); m.setAttribute('aria-hidden', 'false'); EDIT.id = null;
   try { S.settings = await window.helio.settings.set({ newsSeen: newsSig(), ...(cur ? { lastNewsVersion: cur } : {}) }); } catch {}
   refreshNewsDot();
 }
-const FB = { repo: '', label: '', version: '', type: 'idea' };
+const FB = { repo: '', label: '', version: '', type: 'idea', app: false, stars: 0 };
 function openFeedback(ctx) {
-  Object.assign(FB, { repo: '', label: 'Helio Store', version: S.self?.current || '', type: 'idea' }, ctx || {});
+  Object.assign(FB, { repo: '', label: 'Helio Store', version: S.self?.current || '', type: 'idea', app: false, stars: 0 }, ctx || {});
   if (!FB.repo) FB.repo = S.self?.repo || '';
   if (!FB.repo) return toast('Defina o repositório', 'Informe o repositório da Helio Store em Ajustes para enviar feedback.', null, true);
   const chip = (k, l) => `<button class="chip ${FB.type === k ? 'on' : ''}" data-fb-type="${k}" aria-pressed="${FB.type === k}">${l}</button>`;
   $('#modal-card').innerHTML = `<h2>Enviar feedback</h2>
     <p class="sub" style="margin:4px 0 14px">${esc(FB.label)}. Abre uma página do GitHub com a sua mensagem já preenchida. Você só confirma lá (precisa de conta no GitHub) e ela fica pública.</p>
     <div class="d-shortcuts" style="margin:0 0 10px">${chip('idea', 'Ideia')}${chip('bug', 'Problema')}${chip('praise', 'Elogio')}</div>
+    ${FB.app ? `<div class="fb-stars" role="radiogroup" aria-label="Nota">${[1, 2, 3, 4, 5].map((n) => `<button class="star ${FB.stars >= n ? 'on' : ''}" data-fb-star="${n}" aria-label="${n}">★</button>`).join('')}</div>` : ''}
     <textarea id="fb-text" class="fb-text" rows="6" maxlength="3000" placeholder="Escreva aqui o que você quer contar…"></textarea>
     <div class="ed-foot"><span class="grow"></span><button class="btn" data-modal-close>Cancelar</button><button class="btn primary" data-fb-send>Abrir no GitHub</button></div>`;
   const m = $('#modal'); m.classList.add('open'); m.setAttribute('aria-hidden', 'false'); EDIT.id = null;
@@ -327,10 +328,10 @@ function openFeedback(ctx) {
 }
 function sendFeedback() {
   const txt = ($('#fb-text')?.value || '').trim();
-  if (!txt) { $('#fb-text')?.focus(); return toast('Escreva sua mensagem', 'O campo está vazio.'); }
+  if (!txt && !FB.stars) { $('#fb-text')?.focus(); return toast('Escreva sua mensagem', 'O campo está vazio.'); }
   const kind = { idea: ['Ideia', 'enhancement'], bug: ['Problema', 'bug'], praise: ['Elogio', 'feedback'] }[FB.type];
   const os = (navigator.userAgent.match(/Windows NT [\d.]+/) || ['Windows'])[0];
-  const title = `[${kind[0]}] ${txt.split('\n')[0].slice(0, 70)}`;
+  const title = `[${kind[0]}${FB.stars ? ' ' + '★'.repeat(FB.stars) : ''}] ${txt.split('\n')[0].slice(0, 70)}`;
   const body = `${txt}\n\n---\n${FB.label}${FB.version ? ' v' + FB.version : ''} · ${os}`;
   const url = `https://github.com/${FB.repo}/issues/new?labels=${encodeURIComponent(kind[1])}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
   window.helio.openExternal(url); closeModal(); toast('Abrindo o GitHub', 'Confirme o envio na página que abriu.');
@@ -862,9 +863,10 @@ document.addEventListener('click', async (e) => {
   }
   if (t('#btn-news')) return openNews(false);
   if ((el = t('[data-news-open]'))) { closeModal(); return openDetail(el.dataset.newsOpen); }
-  if ((el = t('[data-feedback-app]'))) { const fa = byId(el.dataset.feedbackApp); if (fa?.source?.repo) openFeedback({ repo: fa.source.repo, label: fa.name, version: fa.version }); return; }
+  if ((el = t('[data-feedback-app]'))) { const fa = byId(el.dataset.feedbackApp); if (fa?.source?.repo) openFeedback({ repo: fa.source.repo, label: fa.name, version: fa.version, app: true }); return; }
   if (t('[data-feedback]')) return openFeedback();
-  if ((el = t('[data-fb-type]'))) { const v = $('#fb-text')?.value || ''; FB.type = el.dataset.fbType; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
+  if ((el = t('[data-fb-type]'))) { const v = $('#fb-text')?.value || ''; FB.type = el.dataset.fbType; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version, app: FB.app, stars: FB.stars }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
+  if ((el = t('[data-fb-star]'))) { const v = $('#fb-text')?.value || ''; FB.stars = FB.stars === +el.dataset.fbStar ? 0 : +el.dataset.fbStar; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version, app: FB.app, stars: FB.stars }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
   if (t('[data-fb-send]')) return sendFeedback();
   if ((el = t('[data-shortcut]'))) {
     const [sid, where] = el.dataset.shortcut.split('|'), on = el.getAttribute('aria-pressed') !== 'true';
