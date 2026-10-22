@@ -387,6 +387,8 @@ window.I18N_EXTRA.ja = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "アプリの新しいバージョンが見つかり次第、ダウンロードしてインストールします。",
  "Avalie os apps com estrelas ao enviar feedback.": "フィードバックの送信時に、アプリをスターで評価できます。",
  "Verificar todos": "すべて確認",
+ "Receber versões beta": "ベータ版を受け取る",
+ "Também instala e atualiza para versões de teste (pré-lançamento) dos apps, quando o autor publicar. Pode haver erros. A própria loja continua só nas versões estáveis.": "作者が公開したアプリのテスト版（プレリリース）もインストール・更新します。不具合がある場合があります。ストア本体は安定版のみです。",
  "Busca mais esperta: ignora acentos, aceita várias palavras e um errinho de digitação.": "よりスマートな検索：アクセントを無視し、複数の単語と小さな打ち間違いに対応します。",
  "Modo compacto na Biblioteca.": "ライブラリにコンパクト表示を追加。",
  "Helio Creator: pré-visualização da página do app antes de publicar.": "Helio Creator：公開前にアプリページをプレビューできます。",

@@ -10,4 +10,17 @@ t('ignora blockmap, linux e mac', () => assert.equal(gh.pickAsset([n('app-linux.
 t('dica do helio.json manda', () => assert.equal(gh.pickAsset([n('a-win.zip'), n('portable.zip')], 'portable').name, 'portable.zip'));
 t('sem instalador devolve null', () => assert.equal(gh.pickAsset([n('notes.txt')]), null));
 t('parseRepo aceita link e usuario/repo', () => { assert.deepEqual(gh.parseRepo('https://github.com/u/r.git'), gh.parseRepo('u/r')); assert.equal(gh.parseRepo('lixo'), null); });
-console.log(process.exitCode ? 'falhou' : `✓ ${ok} testes de lógica ok`);
+
+// Canal beta: com ele ligado pega o pré-lançamento mais novo; desligado, só o estável
+const https = require('https'), { EventEmitter } = require('events');
+const REL = { '/repos/u/r/releases/latest': { tag_name: 'v1.0.0' }, '/repos/u/r/releases?per_page=10': [{ tag_name: 'v1.1.0-beta.1', prerelease: true }, { tag_name: 'v1.0.0' }] };
+https.get = (url, o, cb) => { const path = new URL(url).pathname + new URL(url).search; const body = REL[path]; const res = new EventEmitter(); res.statusCode = body ? 200 : 404; res.headers = {};
+  const req = new EventEmitter(); req.destroy = () => {}; process.nextTick(() => { cb(res); if (body) res.emit('data', Buffer.from(JSON.stringify(body))); res.emit('end'); }); return req; };
+(async () => {
+  gh.setBeta(false); const a = await gh.fetchRelease('u', 'r', null);
+  gh.setBeta(true); const b = await gh.fetchRelease('u', 'r', null); const c = await gh.fetchRelease('u', 'r', null, { pre: false });
+  t('canal estável pega a v1.0.0', () => assert.equal(a.tag_name, 'v1.0.0'));
+  t('canal beta pega o pré-lançamento', () => assert.equal(b.tag_name, 'v1.1.0-beta.1'));
+  t('pre:false ignora o beta (atualização da loja)', () => assert.equal(c.tag_name, 'v1.0.0'));
+  console.log(process.exitCode ? 'falhou' : `✓ ${ok} testes de lógica ok`);
+})();

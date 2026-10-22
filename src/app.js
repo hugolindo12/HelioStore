@@ -939,6 +939,7 @@ function renderSettings() {
       <div class="ctl"><input type="text" id="set-selfrepo" placeholder="${esc(S.self?.repo || 'usuario/heliostore')}" value="${esc(s.selfRepo || '')}" spellcheck="false"><button class="btn" id="save-selfrepo">Salvar</button></div></div>
     <div class="set-row"><div><h4>Atualizar a loja automaticamente</h4><p>Quando a loja está em segundo plano, ela baixa e instala as versões novas sozinha.</p></div><button class="toggle ${s.autoUpdateSelf !== false ? 'on' : ''}" data-toggle="autoUpdateSelf"></button></div>
     <div class="set-row"><div><h4>Feedback</h4><p>Conte uma ideia ou um problema. Abre uma página do GitHub com a mensagem pronta.</p></div><div class="ctl"><button class="btn" data-feedback>Enviar feedback</button><button class="btn" id="open-news">Novidades</button></div></div>
+    <div class="set-row"><div><h4>Receber versões beta</h4><p>Também instala e atualiza para versões de teste (pré-lançamento) dos apps, quando o autor publicar. Pode haver erros. A própria loja continua só nas versões estáveis.</p></div>${tg('betaChannel')}</div>
     <div class="set-row"><div><h4>Traduzir os textos dos apps</h4><p>Traduz automaticamente a descrição e as novidades dos apps para o idioma da loja. Usa o serviço gratuito MyMemory e envia só o texto público do app.</p></div>${tg('autoTranslate')}</div>
     <div class="set-row"><div><h4>Idioma</h4><p>Idioma da interface.</p></div>
       <select class="sel" id="set-lang" aria-label="Idioma">${[['auto', 'Automático'], ['pt', 'Português'], ['en', 'English'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch'], ['it', 'Italiano'], ['ja', '日本語'], ['zh', '中文'], ['ru', 'Русский'], ['hi', 'हिन्दी']].map(([k, l]) => `<option value="${k}" ${(s.lang || 'auto') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
@@ -1279,6 +1280,7 @@ document.addEventListener('click', async (e) => {
   if ((el = t('[data-toggle]'))) {
     const k = el.dataset.toggle, cur = k === 'notify' ? S.settings.notify !== false : !!S.settings[k]; S.settings = await window.helio.settings.set({ [k]: !cur });
     el.classList.toggle('on', k === 'notify' ? S.settings.notify !== false : !!S.settings[k]);
+    if (k === 'betaChannel') { try { await window.helio.github.check(); await reloadCatalog(false); } catch {} }
     if (k === 'reduceMotion') document.body.classList.toggle('reduce-motion', !!S.settings.reduceMotion);
     if (k === 'dockClassic') applyDockPrefs();
     return;

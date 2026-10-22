@@ -387,6 +387,8 @@ window.I18N_EXTRA.it = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "Scarica e installa le nuove versioni delle tue app non appena vengono trovate.",
  "Avalie os apps com estrelas ao enviar feedback.": "Valuta le app con le stelle quando invii un feedback.",
  "Verificar todos": "Verifica tutti",
+ "Receber versões beta": "Ricevi le versioni beta",
+ "Também instala e atualiza para versões de teste (pré-lançamento) dos apps, quando o autor publicar. Pode haver erros. A própria loja continua só nas versões estáveis.": "Installa e aggiorna anche alle versioni di prova (pre-release) delle app quando l'autore le pubblica. Possono esserci errori. Lo store resta solo sulle versioni stabili.",
  "Busca mais esperta: ignora acentos, aceita várias palavras e um errinho de digitação.": "Ricerca più intelligente: ignora gli accenti, accetta più parole e un piccolo errore di battitura.",
  "Modo compacto na Biblioteca.": "Modalità compatta nella Libreria.",
  "Helio Creator: pré-visualização da página do app antes de publicar.": "Helio Creator: anteprima della pagina dell'app prima di pubblicare.",

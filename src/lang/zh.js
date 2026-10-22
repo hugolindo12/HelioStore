@@ -387,6 +387,8 @@ window.I18N_EXTRA.zh = {
  "Baixa e instala as versões novas dos seus apps assim que forem encontradas.": "一旦发现应用的新版本，就自动下载并安装。",
  "Avalie os apps com estrelas ao enviar feedback.": "发送反馈时可以用星标为应用评分。",
  "Verificar todos": "全部检查",
+ "Receber versões beta": "接收测试版",
+ "Também instala e atualiza para versões de teste (pré-lançamento) dos apps, quando o autor publicar. Pode haver erros. A própria loja continua só nas versões estáveis.": "当作者发布时，也会安装并更新到应用的测试版（预发布）。可能存在问题。商店本身仍只使用稳定版。",
  "Busca mais esperta: ignora acentos, aceita várias palavras e um errinho de digitação.": "更智能的搜索：忽略重音，支持多个词和轻微拼写错误。",
  "Modo compacto na Biblioteca.": "资源库新增紧凑模式。",
  "Helio Creator: pré-visualização da página do app antes de publicar.": "Helio Creator：发布前预览应用页面。",

@@ -52,6 +52,7 @@ const defaultState = () => ({
     dockClassic: false,
     lang: 'auto',           // idioma da interface (auto = do sistema)
     autoStart: false,       // iniciar com o Windows, em segundo plano
+    betaChannel: false,     // receber versões beta (pré-lançamento) dos apps
     autoTranslate: true,    // traduzir textos dos apps (descrição etc.) para o idioma da interface
     autoUpdateApps: false,  // atualizar sozinho os apps instalados (.zip)
     notify: true,           // notificações do Windows
@@ -688,7 +689,7 @@ async function checkSelfUpdate(manual) {
   if (!repo) return setSelf({ status: manual ? 'error' : 'idle', error: manual ? 'Informe o repositório da Helio Store em Ajustes para checar atualizações da loja.' : '' });
   try {
     const p = gh.parseRepo(repo);
-    const rel = await gh.fetchRelease(p.owner, p.repo, state.settings.githubToken);
+    const rel = await gh.fetchRelease(p.owner, p.repo, state.settings.githubToken, { pre: false }); // a loja só se atualiza para versões estáveis
     const tag = rel && String(rel.tag_name).replace(/^v/i, '');
     if (!rel || !vNewer(tag, app.getVersion())) return setSelf({ status: manual ? 'uptodate' : 'idle', version: '', notes: '', error: '' });
     const exes = (rel.assets || []).filter((a) => /\.exe$/i.test(a.name) && !/blockmap|uninstall/i.test(a.name));
@@ -1301,6 +1302,7 @@ function createTray() {
 app.whenReady().then(() => {
   if (!gotLock) return;
   state = loadState();
+  gh.setBeta(state.settings.betaChannel);
   // apps de demonstração (versões antigas da loja) não existem mais: tira do estado
   for (const [k, v] of Object.entries(state.installed || {})) if (v && v.type === 'demo') delete state.installed[k];
 
@@ -1336,7 +1338,7 @@ app.whenReady().then(() => {
     if (trCache.size !== before) trPersist();
     return out;
   });
-  ipcMain.handle('settings:set', (_, patch) => { state.settings = { ...state.settings, ...patch }; saveState(); if ('autoStart' in patch) applyAutoStart(); if ('lang' in patch) rebuildTrayMenu(); if ('theme' in patch) nativeTheme.themeSource = ({ light: 'light', auto: 'system' })[patch.theme] || 'dark'; return state.settings; });
+  ipcMain.handle('settings:set', (_, patch) => { state.settings = { ...state.settings, ...patch }; if ('betaChannel' in patch) gh.setBeta(state.settings.betaChannel); saveState(); if ('autoStart' in patch) applyAutoStart(); if ('lang' in patch) rebuildTrayMenu(); if ('theme' in patch) nativeTheme.themeSource = ({ light: 'light', auto: 'system' })[patch.theme] || 'dark'; return state.settings; });
   ipcMain.handle('settings:pickDir', async () => {
     const r = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0];

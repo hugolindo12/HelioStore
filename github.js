@@ -103,8 +103,13 @@ function pickAsset(assets = [], hint) {
 const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 const abs = (u, base) => (u ? (/^https?:\/\//i.test(u) ? u : base + u.replace(/^\.?\//, '')) : u);
 
-async function fetchRelease(owner, repo, token) {
-  let rel = await api(`/repos/${owner}/${repo}/releases/latest`, token);
+let BETA = false; // canal beta: também considera versões marcadas como pré-lançamento
+const setBeta = (b) => { BETA = !!b; };
+async function fetchRelease(owner, repo, token, opts = {}) {
+  const pre = opts.pre ?? BETA;
+  let rel = null;
+  if (pre) { const all = await api(`/repos/${owner}/${repo}/releases?per_page=10`, token); rel = (all || []).find((r) => !r.draft) || null; }
+  if (!rel) rel = await api(`/repos/${owner}/${repo}/releases/latest`, token);
   if (!rel) {
     const all = await api(`/repos/${owner}/${repo}/releases?per_page=5`, token);
     rel = (all || []).find((r) => !r.draft) || null;
@@ -360,4 +365,4 @@ async function listMyRepos(token) {
 }
 
 const _resetNet = () => { limitedUntil = 0; offlineUntil = 0; }; // usado nos testes
-module.exports = { listVersions, releaseStats, cleanI18n, _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };
+module.exports = { setBeta, listVersions, releaseStats, cleanI18n, _resetNet, fetchRelease, deviceStart, devicePoll, getUser, listMyRepos, sha256File, parseRepo, resolveRepo, latestTag, pickAsset, scanTree, readmeInfo, categoryFromTopics };

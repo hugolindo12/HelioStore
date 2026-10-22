@@ -135,3 +135,7 @@ Hospede um JSON com uma lista de links e aponte em **Ajustes → Catálogo remot
 
 Quem quiser entrar na lista abre um Pull Request nesse arquivo; você revisa antes de aceitar.
 Apps de terceiros executam código no PC do usuário, então revise antes de aprovar.
+
+## Canal beta
+
+Em Ajustes, **Receber versões beta** faz a loja considerar também Releases marcadas como *pre-release* no GitHub. Para publicar uma versão de teste, marque a opção "Set as a pre-release" ao criar a Release do seu app. A atualização da própria Helio Store só usa versões estáveis.
