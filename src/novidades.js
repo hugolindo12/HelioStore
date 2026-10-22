@@ -2,6 +2,14 @@
 // Aparecem uma vez depois que a loja se atualiza e no botão de novidades (estrela) do topo.
 window.NEWS = [
   {
+    v: '2.0.1',
+    items: [
+      'Avalie os apps com estrelas ao enviar feedback.',
+      'Ao atualizar um app, a loja mostra o resumo do que mudou.',
+      'Novidades e Feedback na loja.',
+    ],
+  },
+  {
     v: '2.0.0',
     items: [
       'A loja se atualiza sozinha: quando está em segundo plano, ela baixa e instala a versão nova.',
