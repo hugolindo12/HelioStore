@@ -6,7 +6,6 @@ window.NEWS = [
     items: [
       'Avalie os apps com estrelas ao enviar feedback.',
       'Ao atualizar um app, a loja mostra o resumo do que mudou.',
-      'Novo: atualizar os apps automaticamente (em Ajustes).',
       'Novidades e Feedback na loja.',
     ],
   },

@@ -9,7 +9,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "dist": "electron-builder --win --publish never"
+    "dist": "electron-builder --win --publish never",
+    "i18n": "node scripts/i18n-check.js"
   },
   "build": {
     "appId": "com.helio.store",
@@ -28,7 +29,13 @@
     "artifactName": "HelioStore-Setup-${version}.exe",
     "nsis": {
       "oneClick": true,
-      "perMachine": false
+      "perMachine": false,
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "en_US",
+        "pt_BR",
+        "es_ES"
+      ]
     }
   },
   "devDependencies": {

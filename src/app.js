@@ -148,7 +148,7 @@ function renderDiscover() {
 
   if (q) {
     const res = S.apps.filter((a) => matches(a, q));
-    el.innerHTML = `<h1 class="title">Resultados</h1><p class="sub">${res.length} ${res.length === 1 ? 'app encontrado' : 'apps encontrados'} para “${esc(S.query.trim())}”</p>` +
+    el.innerHTML = `<h1 class="title">Resultados</h1><p class="sub">${res.length} ${res.length === 1 ? 'app encontrado' : 'apps encontrados'} para “${esc(S.query.trim())}”</p>` + // i18n-ignore
       (res.length ? `<div class="grid">${res.map(card).join('')}</div>` : '<div class="empty"><strong>Nada encontrado</strong>Tente outra palavra.</div>');
     return;
   }
@@ -318,7 +318,7 @@ function openFeedback(ctx) {
   if (!FB.repo) return toast('Defina o repositório', 'Informe o repositório da Helio Store em Ajustes para enviar feedback.', null, true);
   const chip = (k, l) => `<button class="chip ${FB.type === k ? 'on' : ''}" data-fb-type="${k}" aria-pressed="${FB.type === k}">${l}</button>`;
   $('#modal-card').innerHTML = `<h2>Enviar feedback</h2>
-    <p class="sub" style="margin:4px 0 14px">${esc(FB.label)}. Abre uma página do GitHub com a sua mensagem já preenchida. Você só confirma lá (precisa de conta no GitHub) e ela fica pública.</p>
+    <p class="sub" style="margin:4px 0 14px"><b>${esc(FB.label)}</b> Abre uma página do GitHub com a sua mensagem já preenchida. Você só confirma lá (precisa de conta no GitHub) e ela fica pública.</p>
     <div class="d-shortcuts" style="margin:0 0 10px">${chip('idea', 'Ideia')}${chip('bug', 'Problema')}${chip('praise', 'Elogio')}</div>
     ${FB.app ? `<div class="fb-stars" role="radiogroup" aria-label="Nota">${[1, 2, 3, 4, 5].map((n) => `<button class="star ${FB.stars >= n ? 'on' : ''}" data-fb-star="${n}" aria-label="${n}">★</button>`).join('')}</div>` : ''}
     <textarea id="fb-text" class="fb-text" rows="6" maxlength="3000" placeholder="Escreva aqui o que você quer contar…"></textarea>
@@ -457,11 +457,11 @@ function renderPublish() {
   const clipRepo = P.clip && ghParse(P.clip);
   const row = (a) => {
     const m = a.meta || {}, repo = a.source?.repo;
-    const info = [`v${a.version}`, repo, m.stars ? `★ ${fmtNum(m.stars)}` : '', m.updatedAt ? new Date(m.updatedAt).toLocaleDateString(I18N.locale) : ''].filter(Boolean);
+    const info = [`v${a.version}`, repo, m.stars ? `★ ${fmtNum(m.stars)}` : '', m.downloads ? `⬇ ${fmtNum(m.downloads)}` : '', m.updatedAt ? new Date(m.updatedAt).toLocaleDateString(I18N.locale) : ''].filter(Boolean);
     return `<div class="row" data-open="${esc(a.id)}">${iconHTML(a, 44)}
       <div class="row-info"><h4>${esc(a.name)}${S.account && repo && repo.split('/')[0].toLowerCase() === S.account.login.toLowerCase() ? '<span class="tag">Seu repositório</span>' : ''}</h4><p>${info.map(esc).join(' · ')}</p></div>
       <div class="row-acts">${repo ? `<button class="btn sq" data-copy="${esc(repoUrl(repo))}" title="Copiar link">${ICON.copy}</button><button class="btn sq" data-ext="${esc(repoUrl(repo))}" title="Abrir no GitHub">${ICON.github}</button>` : ''}
-        <button class="btn" data-edit="${esc(a.id)}">Editar</button><button class="btn" data-remove="${esc(a.id)}">Remover</button>${getBtn(a)}</div></div>`;
+        ${repo ? `<button class="btn" data-recheck="${esc(repo)}">Verificar</button>` : ''}<button class="btn" data-edit="${esc(a.id)}">Editar</button><button class="btn" data-remove="${esc(a.id)}">Remover</button>${getBtn(a)}</div></div>`;
   };
   el.innerHTML = `<div class="creator-head"><h1 class="title">Helio Creator</h1><button class="btn" data-guide>${ICON.help} Como funciona</button></div>
     <p class="sub">Cole o link do repositório no GitHub. A loja lê o último Release, instala e mantém o app atualizado sozinha sempre que você publicar uma versão nova.</p>
@@ -492,7 +492,7 @@ function renderPublish() {
         <datalist id="mf-cats">${[...new Set(S.apps.map((a) => a.category).filter(Boolean))].map((c) => `<option value="${esc(c)}">`).join('')}</datalist>
       </div>
       <button class="btn" data-copy-manifest>${ICON.copy} Copiar</button><pre id="mf-out">${esc(manifestText())}</pre></details>
-    <div class="section"><h2>Seus apps</h2><span>${mine.length}</span></div>
+    <div class="section"><h2>Seus apps</h2><span>${mine.length}${mine.length ? ' · ★ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.stars || 0), 0)) + ' · ⬇ ' + fmtNum(mine.reduce((n, a) => n + (a.meta?.downloads || 0), 0)) : ''}</span></div>
     ${mine.length ? `<div class="rows">${mine.map(row).join('')}</div>
       <div class="reg-box"><p>Para aparecer para todo mundo, adicione seus repositórios à lista “repos” do catálogo público.</p><button class="btn" data-copy-registry>${ICON.copy} Copiar lista para o registro público</button></div>`
       : '<div class="empty" style="padding:22px 0;text-align:left">Você ainda não adicionou nenhum app.</div>'}
@@ -639,7 +639,6 @@ function renderSettings() {
     <div class="set-row"><div><h4>Atualizações da loja</h4><p id="self-status">${esc(selfText())}</p></div><div class="ctl">${S.self?.status === 'available' ? '<button class="btn primary" data-self-install>Atualizar agora</button>' : ''}<button class="btn" id="self-check">Verificar</button></div></div>
     <div class="set-row"><div><h4>Repositório da Helio Store</h4><p>Repositório no GitHub (dono/nome) onde você publica os Releases da própria loja.</p></div>
       <div class="ctl"><input type="text" id="set-selfrepo" placeholder="${esc(S.self?.repo || 'usuario/heliostore')}" value="${esc(s.selfRepo || '')}" spellcheck="false"><button class="btn" id="save-selfrepo">Salvar</button></div></div>
-    <div class="set-row"><div><h4>Atualizar os apps automaticamente</h4><p>Baixa e instala as versões novas dos seus apps assim que forem encontradas.</p></div>${tg('autoUpdateApps')}</div>
     <div class="set-row"><div><h4>Atualizar a loja automaticamente</h4><p>Quando a loja está em segundo plano, ela baixa e instala as versões novas sozinha.</p></div><button class="toggle ${s.autoUpdateSelf !== false ? 'on' : ''}" data-toggle="autoUpdateSelf"></button></div>
     <div class="set-row"><div><h4>Feedback</h4><p>Conte uma ideia ou um problema. Abre uma página do GitHub com a mensagem pronta.</p></div><div class="ctl"><button class="btn" data-feedback>Enviar feedback</button><button class="btn" id="open-news">Novidades</button></div></div>
     <div class="set-row"><div><h4>Idioma</h4><p>Idioma da interface.</p></div>
@@ -829,7 +828,6 @@ async function fetchAll() {
   try { S.account = (await window.helio.account?.get()) || null; } catch {}
   document.documentElement.classList.toggle('big-catalog', S.apps.length > 150);
   refreshNewsDot();
-  if (S.settings.autoUpdateApps) updatesList().forEach((id) => install(id).catch(() => {}));
   applyDockPrefs();
   if (cat.remoteError) toast('Catálogo remoto indisponível', cat.remoteError, null, true);
 }
@@ -881,6 +879,12 @@ document.addEventListener('click', async (e) => {
   if ((el = t('[data-remove]'))) { e.stopPropagation(); await window.helio.github.remove(el.dataset.remove); S.publish.resultId = null; toast('App removido da loja', 'Ele não aparece mais no catálogo.'); return reloadCatalog(); }
   if ((el = t('[data-ext]'))) { e.stopPropagation(); return window.helio.openExternal(el.dataset.ext); }
   if (t('[data-close]')) return closeDetail();
+  if ((el = t('[data-recheck]'))) {
+    const link = repoUrl(el.dataset.recheck); S.publish.input = link; S.publish.check = { busy: true }; renderPublish();
+    $('#view-publish')?.scrollTo?.({ top: 0, behavior: 'smooth' }); window.scrollTo?.({ top: 0, behavior: 'smooth' });
+    try { S.publish.check = { data: await window.helio.github.inspect(link) }; } catch (err) { S.publish.check = { error: cleanErr(err) }; }
+    return renderPublish();
+  }
   if ((el = t('[data-open]'))) return openDetail(el.dataset.open);
   if ((el = t('.shots img'))) return openLightbox([...el.parentElement.querySelectorAll('img')].map((i) => i.src), [...el.parentElement.children].indexOf(el));
   if (t('#lightbox')) { if (t('[data-lb-prev]')) return lbStep(-1); if (t('[data-lb-next]')) return lbStep(1); if (!t('#lb-img')) return closeLightbox(); return; }

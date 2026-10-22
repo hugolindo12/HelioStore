@@ -228,7 +228,7 @@ function uiLang() {
   const p = state?.settings?.lang;
   if (p === 'pt' || p === 'en' || p === 'es') return p;
   const l = String(app.getLocale() || 'pt').toLowerCase();
-  return l.startsWith('es') ? 'es' : l.startsWith('en') ? 'en' : 'pt';
+  return l.startsWith('pt') ? 'pt' : l.startsWith('es') ? 'es' : 'en'; // outros idiomas: inglês
 }
 function mt(key, ...args) {
   const l = uiLang(), v = (l !== 'pt' && MT[l] && MT[l][key]) || key;
@@ -1083,7 +1083,7 @@ app.whenReady().then(() => {
     return {
       repo: e.source.repo, name: e.name, version: e.version, file: String(e.download.url).split('/').pop(), type: e.download.type, sizeMB: e.sizeMB,
       sha256: !!e.download.sha256, license: e.meta.license || '', manifest: !!e.source.manifest, iconSource: e.iconSource,
-      shots: (e.screenshots || []).length, exe: e.download.exe || '', described: e.description !== 'Sem descrição.', category: e.category,
+      shots: (e.screenshots || []).length, exe: e.download.exe || '', described: e.description !== 'Sem descrição.', // i18n-ignore category: e.category,
     };
   });
   ipcMain.handle('self:get', () => setSelf({}));

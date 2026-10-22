@@ -17,3 +17,4 @@ jobs:
       - run: |
           for f in main.js preload.js github.js src/app.js src/i18n.js; do node --check "$f"; done
           node -e "JSON.parse(require('fs').readFileSync('catalog/apps.json','utf8')); JSON.parse(require('fs').readFileSync('package.json','utf8'))"
+      - run: node scripts/i18n-check.js
