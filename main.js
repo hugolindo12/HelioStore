@@ -44,7 +44,7 @@ const defaultState = () => ({
     lastNewsVersion: '',    // última versão cujas novidades foram mostradas
     newsSeen: '',           // assinatura das novidades já vistas (sino)
     selfRepo: '',           // repositório da própria loja (dono/repo) para a atualização automática
-    githubClientId: '',     // Client ID do app OAuth (login com código)
+    githubClientId: 'Ov23liXy0uhGyMpcs4VK', // Client ID do app OAuth "Helio Store" (público, não é segredo): login com código
     dockAutoHide: false,
     dockSize: 'm',
     dockClassic: false,
@@ -79,6 +79,7 @@ function loadState() {
       try { st.settings.githubToken = safeStorage.decryptString(Buffer.from(st.settings.githubTokenEnc, 'base64')); } catch { st.settings.githubToken = ''; st.account = null; } // não deu para ler o token (outro usuário/PC): pede para entrar de novo
     }
     delete st.settings.githubTokenEnc;
+    if (!String(st.settings.githubClientId || '').trim()) st.settings.githubClientId = def.settings.githubClientId; // estados antigos guardavam vazio
     return st;
   } catch {
     return defaultState();
