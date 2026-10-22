@@ -30,6 +30,7 @@ const byId = (id) => S.apps.find((a) => a.id === id);
 
 // ───────────── Ícones ─────────────
 const ICON = {
+  spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 15l.7 2.1L22 18l-2.3.9L19 21l-.7-2.1L16 18l2.3-.9L19 15z"/></svg>',
   download: '<svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>',
   play: '<svg viewBox="0 0 24 24"><path d="M7 5v14l11-7z" fill="currentColor" stroke="none"/></svg>',
   refresh: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 13a8 8 0 0 0 14.9 3"/><path d="M4 4v4h4M20 20v-4h-4"/></svg>',
@@ -126,7 +127,7 @@ const matches = (a, q) => [a.name, a.tagline, a.category, a.developer].some((t) 
 function card(a) {
   const meta = [a.category, a.sizeMB ? `${a.sizeMB} MB` : null].filter(Boolean).join(' · ');
   return `<article class="card" data-open="${esc(a.id)}">${iconHTML(a, 52)}
-    <div class="card-body"><h3><span class="nm">${esc(a.name)}</span>${a.community ? '<span class="tag">Comunidade</span>' : ''}</h3><p>${esc(a.tagline)}</p><small>${esc(meta)}</small></div>
+    <div class="card-body"><h3><span class="nm">${esc(a.name)}</span>${a.community ? '<span class="tag">Comunidade</span>' : ''}${isNewApp(a) ? '<span class="tag new">Novo</span>' : ''}</h3><p>${esc(a.tagline)}</p><small>${esc(meta)}</small></div>
     ${getBtn(a)}</article>`;
 }
 function featCard(a) {
@@ -286,6 +287,55 @@ function manifestText() {
   return Object.keys(o).length ? JSON.stringify(o, null, 2) : MANIFEST_EXAMPLE;
 }
 
+// ───────────── Novidades e feedback ─────────────
+const NEWS = window.NEWS || [];
+const DAY = 864e5;
+const recentApps = (days) => S.apps.filter((a) => a.meta?.updatedAt && Date.now() - Date.parse(a.meta.updatedAt) < days * DAY).sort((a, b) => Date.parse(b.meta.updatedAt) - Date.parse(a.meta.updatedAt));
+const isNewApp = (a) => !!(a.meta?.updatedAt && Date.now() - Date.parse(a.meta.updatedAt) < 7 * DAY);
+const newsSig = () => (NEWS[0]?.v || '') + '|' + recentApps(14).map((a) => a.id + '@' + a.version).join(',');
+function refreshNewsDot() { const d = $('#news-dot'); if (d) d.hidden = !(NEWS.length && S.settings.newsSeen !== newsSig()); }
+function ago(iso) {
+  const d = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / DAY));
+  try { return new Intl.RelativeTimeFormat(I18N.locale, { numeric: 'auto' }).format(-d, 'day'); } catch { return ''; }
+}
+async function openNews(auto) {
+  const cur = S.self?.current, rec = recentApps(14).slice(0, 6);
+  const notes = NEWS.slice(0, 3).map((n, i) => `<div class="nw-ver"><h4>${i === 0 ? 'Helio Store v' + esc(n.v) : 'Versão ' + esc(n.v)}</h4><ul>${n.items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('');
+  $('#modal-card').innerHTML = `<div class="g-badge">${ICON.spark}</div>
+    <h2>${auto && cur ? 'Novidades da Helio Store v' + esc(cur) : 'Novidades'}</h2>
+    <p class="sub" style="margin:4px 0 16px">${auto ? 'A loja foi atualizada. Veja o que mudou.' : 'O que há de novo na loja e nos apps.'}</p>
+    <div class="nw-body">${notes}
+      ${rec.length ? `<div class="nw-ver"><h4>Apps com novidades</h4><div class="nw-apps">${rec.map((a) => `<div class="nw-app" data-news-open="${esc(a.id)}">${iconHTML(a, 36)}<div><b>${esc(a.name)}</b><span>v${esc(a.version)} · ${esc(ago(a.meta.updatedAt))}</span></div></div>`).join('')}</div></div>` : ''}</div>
+    <div class="ed-foot"><button class="btn" data-feedback>Enviar feedback</button><span class="grow"></span><button class="btn primary" data-modal-close>Fechar</button></div>`;
+  const m = $('#modal'); m.classList.add('open'); m.setAttribute('aria-hidden', 'false'); EDIT.id = null;
+  try { S.settings = await window.helio.settings.set({ newsSeen: newsSig(), ...(cur ? { lastNewsVersion: cur } : {}) }); } catch {}
+  refreshNewsDot();
+}
+const FB = { repo: '', label: '', version: '', type: 'idea' };
+function openFeedback(ctx) {
+  Object.assign(FB, { repo: '', label: 'Helio Store', version: S.self?.current || '', type: 'idea' }, ctx || {});
+  if (!FB.repo) FB.repo = S.self?.repo || '';
+  if (!FB.repo) return toast('Defina o repositório', 'Informe o repositório da Helio Store em Ajustes para enviar feedback.', null, true);
+  const chip = (k, l) => `<button class="chip ${FB.type === k ? 'on' : ''}" data-fb-type="${k}" aria-pressed="${FB.type === k}">${l}</button>`;
+  $('#modal-card').innerHTML = `<h2>Enviar feedback</h2>
+    <p class="sub" style="margin:4px 0 14px">${esc(FB.label)}. Abre uma página do GitHub com a sua mensagem já preenchida. Você só confirma lá (precisa de conta no GitHub) e ela fica pública.</p>
+    <div class="d-shortcuts" style="margin:0 0 10px">${chip('idea', 'Ideia')}${chip('bug', 'Problema')}${chip('praise', 'Elogio')}</div>
+    <textarea id="fb-text" class="fb-text" rows="6" maxlength="3000" placeholder="Escreva aqui o que você quer contar…"></textarea>
+    <div class="ed-foot"><span class="grow"></span><button class="btn" data-modal-close>Cancelar</button><button class="btn primary" data-fb-send>Abrir no GitHub</button></div>`;
+  const m = $('#modal'); m.classList.add('open'); m.setAttribute('aria-hidden', 'false'); EDIT.id = null;
+  setTimeout(() => $('#fb-text')?.focus(), 50);
+}
+function sendFeedback() {
+  const txt = ($('#fb-text')?.value || '').trim();
+  if (!txt) { $('#fb-text')?.focus(); return toast('Escreva sua mensagem', 'O campo está vazio.'); }
+  const kind = { idea: ['Ideia', 'enhancement'], bug: ['Problema', 'bug'], praise: ['Elogio', 'feedback'] }[FB.type];
+  const os = (navigator.userAgent.match(/Windows NT [\d.]+/) || ['Windows'])[0];
+  const title = `[${kind[0]}] ${txt.split('\n')[0].slice(0, 70)}`;
+  const body = `${txt}\n\n---\n${FB.label}${FB.version ? ' v' + FB.version : ''} · ${os}`;
+  const url = `https://github.com/${FB.repo}/issues/new?labels=${encodeURIComponent(kind[1])}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  window.helio.openExternal(url); closeModal(); toast('Abrindo o GitHub', 'Confirme o envio na página que abriu.');
+}
+
 // ───────────── Atualização da própria loja ─────────────
 function renderSelf() {
   const el = $('#self-banner'), u = S.self; if (!el) return;
@@ -306,7 +356,13 @@ function selfText() {
   return `Versão instalada: v${u.current || '—'}`;
 }
 window.helio.self?.onChanged((u) => { S.self = u; renderSelf(); });
-async function initSelf() { try { S.self = await window.helio.self?.get(); } catch {} renderSelf(); }
+async function initSelf() {
+  try { S.self = await window.helio.self?.get(); } catch {}
+  renderSelf(); refreshNewsDot();
+  // primeira abertura depois de atualizar (ou instalar): mostra as novidades uma vez
+  const cur = S.self?.current;
+  if (cur && S.settings.lastNewsVersion !== cur && NEWS.some((n) => n.v === cur)) setTimeout(() => { if (!modalOpen()) openNews(true); }, 900);
+}
 
 // ───────────── Perfil de criador (local) ─────────────
 const PROF_COLORS = ['#0a84ff', '#30d158', '#ff9f0a', '#ff453a', '#bf5af2', '#64d2ff'];
@@ -582,6 +638,8 @@ function renderSettings() {
     <div class="set-row"><div><h4>Atualizações da loja</h4><p id="self-status">${esc(selfText())}</p></div><div class="ctl">${S.self?.status === 'available' ? '<button class="btn primary" data-self-install>Atualizar agora</button>' : ''}<button class="btn" id="self-check">Verificar</button></div></div>
     <div class="set-row"><div><h4>Repositório da Helio Store</h4><p>Repositório no GitHub (dono/nome) onde você publica os Releases da própria loja.</p></div>
       <div class="ctl"><input type="text" id="set-selfrepo" placeholder="${esc(S.self?.repo || 'usuario/heliostore')}" value="${esc(s.selfRepo || '')}" spellcheck="false"><button class="btn" id="save-selfrepo">Salvar</button></div></div>
+    <div class="set-row"><div><h4>Atualizar a loja automaticamente</h4><p>Quando a loja está em segundo plano, ela baixa e instala as versões novas sozinha.</p></div><button class="toggle ${s.autoUpdateSelf !== false ? 'on' : ''}" data-toggle="autoUpdateSelf"></button></div>
+    <div class="set-row"><div><h4>Feedback</h4><p>Conte uma ideia ou um problema. Abre uma página do GitHub com a mensagem pronta.</p></div><div class="ctl"><button class="btn" data-feedback>Enviar feedback</button><button class="btn" id="open-news">Novidades</button></div></div>
     <div class="set-row"><div><h4>Idioma</h4><p>Idioma da interface.</p></div>
       <div class="seg">${[['auto', 'Automático'], ['pt', 'Português'], ['en', 'English'], ['es', 'Español']].map(([k, l]) => `<button class="seg-b ${(s.lang || 'auto') === k ? 'on' : ''}" data-lang-set="${k}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><div><h4>Aparência</h4><p>Escuro, claro ou igual ao Windows.</p></div>
@@ -607,7 +665,7 @@ function openDetail(id) {
   $('#detail-panel').setAttribute('style', colorVars(a));
   const keepScroll = $('#detail').classList.contains('open') ? $('#detail-panel').scrollTop : 0;
   $('#detail-panel').innerHTML = `<div class="d-head">${iconHTML(a, 84)}<div><h2>${esc(a.name)}</h2><p>${esc(a.developer || (a.mine && S.settings.profile?.name) || '')}${a.community ? '<span class="tag">Comunidade</span>' : ''}</p></div></div>
-    <div class="d-act">${getBtn(a, true)}${inst?.prevVersion ? `<button class="btn" data-rollback="${esc(id)}" title="Volta para a versão anterior guardada">Voltar para v${esc(inst.prevVersion)}</button>` : ''}${inst ? `<button class="btn danger" data-uninstall="${esc(id)}">Desinstalar</button>` : ''}${a.source?.url ? `<button class="btn" data-ext="${esc(a.source.url)}">${ICON.github} GitHub</button>` : ''}${/^https?:\/\//i.test(a.meta?.homepage || '') ? `<button class="btn" data-ext="${esc(a.meta.homepage)}">Site</button>` : ''}${a.mine ? `<button class="btn" data-edit="${esc(id)}">Personalizar</button>` : ''}</div>
+    <div class="d-act">${getBtn(a, true)}${inst?.prevVersion ? `<button class="btn" data-rollback="${esc(id)}" title="Volta para a versão anterior guardada">Voltar para v${esc(inst.prevVersion)}</button>` : ''}${inst ? `<button class="btn danger" data-uninstall="${esc(id)}">Desinstalar</button>` : ''}${a.source?.url ? `<button class="btn" data-ext="${esc(a.source.url)}">${ICON.github} GitHub</button>` : ''}${a.source?.repo ? `<button class="btn" data-feedback-app="${esc(id)}">Feedback</button>` : ''}${/^https?:\/\//i.test(a.meta?.homepage || '') ? `<button class="btn" data-ext="${esc(a.meta.homepage)}">Site</button>` : ''}${a.mine ? `<button class="btn" data-edit="${esc(id)}">Personalizar</button>` : ''}</div>
     ${shortcutsRow(a, inst)}
     <div class="d-info"><div><span>Categoria</span><b>${esc(a.category || '—')}</b></div><div><span>Tamanho</span><b>${a.sizeMB ? a.sizeMB + ' MB' : '—'}</b></div><div><span>Versão</span><b>${esc(a.version)}</b></div></div>
     ${trustNote(a)}${metaRows(a)}
@@ -768,6 +826,7 @@ async function fetchAll() {
   try { S.running = new Set((await window.helio.running?.()) || []); } catch {}
   try { S.account = (await window.helio.account?.get()) || null; } catch {}
   document.documentElement.classList.toggle('big-catalog', S.apps.length > 150);
+  refreshNewsDot();
   applyDockPrefs();
   if (cat.remoteError) toast('Catálogo remoto indisponível', cat.remoteError, null, true);
 }
@@ -801,6 +860,12 @@ document.addEventListener('click', async (e) => {
     catch (err) { toast('Não foi possível voltar a versão', cleanErr(err), null, true); }
     renderDock(); render(); if (S.detailId === id) openDetail(id); return;
   }
+  if (t('#btn-news')) return openNews(false);
+  if ((el = t('[data-news-open]'))) { closeModal(); return openDetail(el.dataset.newsOpen); }
+  if ((el = t('[data-feedback-app]'))) { const fa = byId(el.dataset.feedbackApp); if (fa?.source?.repo) openFeedback({ repo: fa.source.repo, label: fa.name, version: fa.version }); return; }
+  if (t('[data-feedback]')) return openFeedback();
+  if ((el = t('[data-fb-type]'))) { const v = $('#fb-text')?.value || ''; FB.type = el.dataset.fbType; openFeedback({ type: FB.type, repo: FB.repo, label: FB.label, version: FB.version }); const ta = $('#fb-text'); if (ta) { ta.value = v; ta.focus(); } return; }
+  if (t('[data-fb-send]')) return sendFeedback();
   if ((el = t('[data-shortcut]'))) {
     const [sid, where] = el.dataset.shortcut.split('|'), on = el.getAttribute('aria-pressed') !== 'true';
     try { await window.helio.shortcut(sid, where, on); S.installed = (await window.helio.state()).installed; toast(on ? 'Atalho criado' : 'Atalho removido', where === 'desktop' ? 'Área de Trabalho' : 'Menu Iniciar'); }
@@ -891,6 +956,7 @@ document.addEventListener('click', async (e) => {
   if (t('#pick-catalog')) { const f = await window.helio.settings.pickCatalog(); if (f) $('#set-catalog').value = f; return; }
   if (t('#save-catalog')) { S.settings = await window.helio.settings.set({ catalogUrl: $('#set-catalog').value.trim() }); await reloadCatalog(); return toast('Catálogo atualizado', `${S.apps.length} apps carregados`); }
   if (t('[data-self-install]')) { try { await window.helio.self.install(); } catch (e) { toast('Não foi possível atualizar a loja', cleanErr(e), null, true); } return; }
+  if (t('#open-news')) return openNews(false);
   if (t('#self-check')) { S.self = await window.helio.self.check(); renderSelf(); if (S.view === 'settings') renderSettings(); return; }
   if (t('#save-selfrepo')) { S.settings = await window.helio.settings.set({ selfRepo: $('#set-selfrepo').value.trim() }); toast('Repositório salvo', 'Clique em Verificar para checar atualizações da loja.'); return; }
   if (t('#save-clientid')) { S.settings = await window.helio.settings.set({ githubClientId: $('#set-clientid').value.trim() }); return toast('Client ID salvo', 'Agora dá para entrar com código no Helio Creator.'); }

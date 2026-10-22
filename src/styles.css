@@ -484,3 +484,18 @@ html[data-theme="light"] .d-trust.ok b { color: #1a9a3c; } html[data-theme="ligh
 .chk { display: flex; gap: 9px; padding: 3px 0; line-height: 1.45; } .chk i { font-style: normal; font-weight: 700; flex: none; width: 14px; text-align: center; }
 .chk.c-ok i { color: #30d158; } .chk.c-warn i { color: #ff9f0a; } .chk.c-warn span { color: var(--muted); }
 html[data-theme="light"] .chk.c-ok i { color: #1a9a3c; } html[data-theme="light"] .chk.c-warn i { color: #c27400; }
+
+/* novidades e feedback */
+#btn-news { position: relative; }
+.icon-btn .dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #ff2e7e; box-shadow: 0 0 0 2px var(--bg, #000); }
+.icon-btn .dot[hidden] { display: none; }
+.tag.new { background: var(--accent); color: #fff; }
+.nw-body { max-height: 52vh; overflow: auto; padding-right: 4px; }
+.nw-ver { margin-bottom: 16px; }
+.nw-ver h4 { margin: 0 0 6px; font-size: 13px; }
+.nw-ver ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.nw-apps { display: grid; gap: 6px; }
+.nw-app { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; cursor: pointer; background: rgb(var(--w) / .05); }
+.nw-app:hover { background: rgb(var(--w) / .1); }
+.nw-app b { display: block; font-size: 13px; } .nw-app span { font-size: 12px; color: var(--muted); }
+.fb-text { width: 100%; box-sizing: border-box; resize: vertical; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgb(var(--w) / .05); color: var(--text); font: inherit; font-size: 13px; }

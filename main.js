@@ -39,6 +39,9 @@ const defaultState = () => ({
   repoCache: {},  // repo -> { entry, at } para listas de registro remoto
   settings: {
     githubToken: '',
+    autoUpdateSelf: true,   // atualizar a própria loja sozinha quando ela está em segundo plano
+    lastNewsVersion: '',    // última versão cujas novidades foram mostradas
+    newsSeen: '',           // assinatura das novidades já vistas (sino)
     selfRepo: '',           // repositório da própria loja (dono/repo) para a atualização automática
     githubClientId: '',     // Client ID do app OAuth (login com código)
     dockAutoHide: false,
@@ -470,7 +473,7 @@ async function checkUpdates() {
 // Lê o último Release do repositório da loja; se a versão for maior, baixa o instalador (.exe),
 // confere o SHA-256 e roda em modo silencioso. A loja fecha e o instalador abre a nova versão.
 let selfUpd = { status: 'idle', current: '', version: '', notes: '', percent: 0, error: '', repo: '' };
-let selfAsset = null, selfNotified = '';
+let selfAsset = null, selfNotified = '', selfAutoTried = '';
 const vParts = (v) => String(v || '').replace(/^v/i, '').split(/[.+-]/).map((x) => parseInt(x, 10) || 0);
 function vNewer(a, b) {
   const x = vParts(a), y = vParts(b);
@@ -499,7 +502,14 @@ async function checkSelfUpdate(manual) {
     if (!/^https:\/\/([\w-]+\.)?(github\.com|githubusercontent\.com)\//i.test(asset.browser_download_url || '')) throw new Error('Endereço de download inesperado no Release.');
     selfAsset = { url: asset.browser_download_url, name: asset.name, sha256: (/^sha256:([0-9a-f]{64})$/i.exec(asset.digest || '') || [])[1] };
     if (selfNotified !== tag) { selfNotified = tag; notify(mt('Helio Store {0} disponível', tag), mt('Abra a loja e clique em Atualizar agora.')); }
-    return setSelf({ status: 'available', version: tag, notes: String(rel.body || '').slice(0, 1500), error: '' });
+    const res = setSelf({ status: 'available', version: tag, notes: String(rel.body || '').slice(0, 1500), error: '' });
+    // Atualização automática: só quando a loja está em segundo plano (janela escondida), uma tentativa por versão
+    const hidden = !win || win.isDestroyed() || !win.isVisible();
+    if (state.settings.autoUpdateSelf !== false && app.isPackaged && hidden && selfAutoTried !== tag) {
+      selfAutoTried = tag;
+      installSelfUpdate().catch(() => {});
+    }
+    return res;
   } catch (e) {
     return setSelf({ status: manual ? 'error' : selfUpd.status, error: manual ? e.message : '' });
   }
