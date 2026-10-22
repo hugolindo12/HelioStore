@@ -653,7 +653,10 @@ async function checkSelfUpdate(manual) {
     const tag = rel && String(rel.tag_name).replace(/^v/i, '');
     if (!rel || !vNewer(tag, app.getVersion())) return setSelf({ status: manual ? 'uptodate' : 'idle', version: '', notes: '', error: '' });
     const exes = (rel.assets || []).filter((a) => /\.exe$/i.test(a.name) && !/blockmap|uninstall/i.test(a.name));
-    const asset = exes.find((a) => /setup|install/i.test(a.name)) || exes[0];
+    // Se o Release tiver mais de um instalador (ex.: sobrou o de uma versão antiga), usa o da versão da tag; senão o de maior versão
+    const verOf = (n) => ((/(\d+)\.(\d+)\.(\d+)/.exec(n) || []).slice(1).map(Number));
+    const cmpV = (x, y) => { for (let i = 0; i < 3; i++) { const d = (y[i] || 0) - (x[i] || 0); if (d) return d; } return 0; };
+    const asset = [...exes].sort((a, b) => (Number(b.name.includes(tag)) - Number(a.name.includes(tag))) || cmpV(verOf(a.name), verOf(b.name)) || (Number(/setup|install/i.test(b.name)) - Number(/setup|install/i.test(a.name))))[0];
     if (!asset) return setSelf({ status: manual ? 'error' : 'idle', error: manual ? `A versão ${tag} não tem um instalador .exe anexado.` : '' });
     if (!/^https:\/\/([\w-]+\.)?(github\.com|githubusercontent\.com)\//i.test(asset.browser_download_url || '')) throw new Error('Endereço de download inesperado no Release.');
     selfAsset = { url: asset.browser_download_url, name: asset.name, sha256: (/^sha256:([0-9a-f]{64})$/i.exec(asset.digest || '') || [])[1] };

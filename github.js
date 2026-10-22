@@ -95,7 +95,9 @@ function pickAsset(assets = [], hint) {
     if (/blockmap|\.sig|sha256/.test(n)) s -= 20;
     return s;
   };
-  return list.sort((a, b) => score(b) - score(a))[0] || null;
+  const ver = (n) => (/(\d+)\.(\d+)\.(\d+)/.exec(n) || []).slice(1).map(Number);
+  const newer = (a, b) => { const x = ver(a.name), y = ver(b.name); for (let i = 0; i < 3; i++) { const d = (y[i] || 0) - (x[i] || 0); if (d) return d; } return 0; };
+  return list.sort((a, b) => (score(b) - score(a)) || newer(a, b))[0] || null; // empate: a de maior versão
 }
 
 const hash = (s) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
