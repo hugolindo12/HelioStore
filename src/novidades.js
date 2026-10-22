@@ -2,6 +2,15 @@
 // Aparecem uma vez depois que a loja se atualiza e no botão de novidades (estrela) do topo.
 window.NEWS = [
   {
+    v: '2.0.3',
+    items: [
+      'Busca mais esperta: ignora acentos, aceita várias palavras e um errinho de digitação.',
+      'Modo compacto na Biblioteca.',
+      'Helio Creator: pré-visualização da página do app antes de publicar.',
+      'Reportar um problema da loja com um clique, já com o diagnóstico.',
+    ],
+  },
+  {
     v: '2.0.2',
     items: [
       'Helio Creator agora exige entrar com o GitHub.',
