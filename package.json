@@ -22,7 +22,8 @@
       "catalog/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "src/assets/icon.png"
     },
     "artifactName": "HelioStore-Setup-${version}.exe",
     "nsis": {
