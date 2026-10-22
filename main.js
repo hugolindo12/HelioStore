@@ -58,6 +58,7 @@ const defaultState = () => ({
     notify: true,           // notificações do Windows
     catalogUrl: '',
     installDir: path.join(app.getPath('userData'), 'apps'),
+    appDirs: {},            // pasta de instalação escolhida para um app específico (id → pasta)
     autoLaunch: false,
     reduceMotion: false,
   },
@@ -783,9 +784,10 @@ function autoFindExe(dir, appName = '') {
 async function freeBytes(dir) {
   try { await fsp.mkdir(dir, { recursive: true }); const st = await fsp.statfs(dir); return Number(st.bavail) * Number(st.bsize); } catch { return Infinity; }
 }
+const appBase = (id) => (state.settings.appDirs && state.settings.appDirs[id]) || state.settings.installDir;
 async function checkSpace(appInfo) {
   const need = Math.max(120, (appInfo.sizeMB || 40) * 2.5) * 1024 * 1024; // download + extração
-  const dirs = [...new Set([state.settings.installDir, app.getPath('temp')])];
+  const dirs = [...new Set([appBase(appInfo.id), app.getPath('temp')])];
   for (const d of dirs) {
     const free = await freeBytes(d);
     if (free < need) throw new Error(`Sem espaço em disco: precisa de uns ${Math.ceil(need / 1048576)} MB livres e só há ${Math.floor(free / 1048576)} MB.`);
@@ -873,7 +875,9 @@ async function installNow(appInfo) {
     let record = { version, type: ext, installedAt: Date.now(), name, verified: !!dl.sha256 };
 
     if (ext === 'zip') {
-      const target = path.join(state.settings.installDir, id);
+      const prevRec = state.installed[id]; // atualização continua na pasta onde o app já está
+      const base = prevRec && prevRec.type === 'zip' && prevRec.path ? path.dirname(prevRec.path) : appBase(id);
+      const target = path.join(base, id);
       // Extrai numa pasta temporária: se algo falhar, a versão antiga continua intacta
       const staging = target + '.novo';
       await fsp.rm(staging, { recursive: true, force: true });
@@ -1116,6 +1120,13 @@ function runSmoke() {
       if (!n) fail('UI opened without apps or without window.helio');
       const diag = await run('window.helio.diag()');
       if (!/Helio Store v/.test(String(diag))) fail('unexpected diag output');
+      const tmp = path.join(require('os').tmpdir(), 'helio-dir-test');
+      const r1 = await run(`window.helio.setDir('smoke-app', ${JSON.stringify(tmp)})`);
+      if (!r1.appDirs || r1.appDirs['smoke-app'] !== path.resolve(tmp)) fail('setDir did not save the folder');
+      const bad = await run(`window.helio.setDir('smoke-app', ${JSON.stringify(path.parse(tmp).root)}).then(() => 'accepted', () => 'rejected')`);
+      if (bad !== 'rejected') fail('setDir accepted the drive root');
+      const r2 = await run("window.helio.setDir('smoke-app', null)");
+      if (r2.appDirs && r2.appDirs['smoke-app']) fail('setDir did not clear the folder');
       if (errs.length) fail('console errors: ' + errs.join(' | '));
       clearTimeout(timer);
       console.log(`SMOKE_OK: ${n} items on screen, diag ok`);
@@ -1351,6 +1362,20 @@ app.whenReady().then(() => {
   ipcMain.handle('app:install', (_, info) => installApp(info));
   ipcMain.handle('app:cancel', (_, id) => { (queued.get(id) || activeJobs.get(id))?.cancel(); });
   ipcMain.handle('app:uninstall', (_, id) => uninstallApp(id));
+  ipcMain.handle('app:setDir', async (_, id, dir) => {
+    if (!validId(id)) throw new Error('Identificador inválido.');
+    const dirs = { ...(state.settings.appDirs || {}) };
+    if (!dir) delete dirs[id];
+    else {
+      const d = path.resolve(String(dir));
+      if (!path.isAbsolute(d) || d === path.parse(d).root) throw new Error('Escolha uma pasta, não a raiz do disco.');
+      await fsp.mkdir(d, { recursive: true });
+      const probe = path.join(d, '.helio-teste'); // confere se dá para gravar na pasta
+      try { await fsp.writeFile(probe, 'ok'); await fsp.rm(probe, { force: true }); } catch { throw new Error('Não foi possível gravar nessa pasta. Escolha outra.'); }
+      dirs[id] = d;
+    }
+    state.settings = { ...state.settings, appDirs: dirs }; saveState(); return state.settings;
+  });
   ipcMain.handle('app:rollback', (_, id) => rollbackApp(id));
   ipcMain.handle('app:sizes', () => appSizes());
   ipcMain.handle('app:launch', (_, id) => launchApp(id));

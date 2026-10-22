@@ -959,6 +959,13 @@ function renderSettings() {
 }
 
 // ───────────── Detalhes ─────────────
+// Pasta de instalação por app (só para apps em .zip, que a loja instala sozinha)
+function dirRow(a, inst) {
+  const zip = a.download?.type === 'zip' || /\.zip(\?|$)/i.test(String(a.download?.url || ''));
+  if (inst || !zip) return '';
+  const d = S.settings.appDirs?.[a.id];
+  return `<div class="d-dir"><span>Pasta de instalação</span><b title="${esc(d || S.settings.installDir || '')}">${esc(d || 'Padrão')}</b><button class="btn" data-dir-pick="${esc(a.id)}">Alterar</button>${d ? `<button class="btn" data-dir-reset="${esc(a.id)}">Padrão</button>` : ''}</div>`;
+}
 function openDetail(id) {
   const a = byId(id); if (!a) return;
   S.detailId = id;
@@ -969,6 +976,7 @@ function openDetail(id) {
     <div class="d-act">${getBtn(a, true)}${inst?.prevVersion ? `<button class="btn" data-rollback="${esc(id)}" title="Volta para a versão anterior guardada">Voltar para v${esc(inst.prevVersion)}</button>` : ''}${inst ? `<button class="btn danger" data-uninstall="${esc(id)}">Desinstalar</button>` : ''}${a.source?.url ? `<button class="btn" data-ext="${esc(a.source.url)}">${ICON.github} GitHub</button>` : ''}${a.source?.repo ? `<button class="btn" data-feedback-app="${esc(id)}">Feedback</button>` : ''}${/^https?:\/\//i.test(a.meta?.homepage || '') ? `<button class="btn" data-ext="${esc(a.meta.homepage)}">Site</button>` : ''}${a.mine ? `<button class="btn" data-edit="${esc(id)}">Personalizar</button>` : ''}</div>
     ${S.settings.ratings?.[id] ? `<div class="d-rate"><span>Sua nota</span><b>${'★'.repeat(S.settings.ratings[id])}${'☆'.repeat(5 - S.settings.ratings[id])}</b></div>` : ''}
     ${shortcutsRow(a, inst)}
+    ${dirRow(a, inst)}
     <div class="d-info"><div><span>Categoria</span><b>${esc(a.category || '—')}</b></div><div><span>Tamanho</span><b>${a.sizeMB ? a.sizeMB + ' MB' : '—'}</b></div><div><span>Versão</span><b>${esc(a.version)}</b></div></div>
     ${trustNote(a)}${metaRows(a)}
     ${a.screenshots?.length ? `<h3>Capturas</h3><div class="shots">${a.screenshots.map((u) => `<img src="${esc(u)}" alt="" loading="lazy" decoding="async">`).join('')}</div>` : ''}
@@ -1301,6 +1309,8 @@ document.addEventListener('click', async (e) => {
     toast('Sessão encerrada', 'Entre de novo para usar o Helio Creator.'); return renderPublish();
   }
   if (t('#lib-compact')) { const st = await window.helio.settings.set({ compactLib: !S.settings.compactLib }); S.settings = st; return renderLibrary(); }
+  if ((el = t('[data-dir-pick]'))) { const d = await window.helio.settings.pickDir(); if (d) { try { S.settings = await window.helio.setDir(el.dataset.dirPick, d); } catch (e) { toast('Pasta inválida', cleanErr(e), null, true); } openDetail(el.dataset.dirPick); } return; }
+  if ((el = t('[data-dir-reset]'))) { S.settings = await window.helio.setDir(el.dataset.dirReset, null); return openDetail(el.dataset.dirReset); }
   if (t('[data-diag]')) return openDiag();
   if (t('[data-diag-report]')) return reportStore();
   if (t('[data-pub-preview]')) return openPreview();

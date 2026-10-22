@@ -11,7 +11,7 @@
     settings: { set: async (p) => Object.assign(settings, p), pickDir: async () => null, pickCatalog: async () => null },
     shortcut: async (id, where, on) => { if (window.__scFail) throw new Error("Error invoking remote method 'shortcut:set': Error: Não achei o executável deste app para criar o atalho."); const r = installed[id]; r.shortcuts = { ...(r.shortcuts || {}), [where]: on }; return r.shortcuts; },
     translate: async (lang, texts) => { window.__trCalls = (window.__trCalls || 0) + 1; return texts.map(t => '[' + lang + '] ' + t); },
-    install: async () => ({}), cancel: async () => {}, uninstall: async () => {}, launch: async () => ({ ok: true }), openFolder() {}, openExternal() {}, onProgress() {},
+    install: async () => ({}), cancel: async () => {}, uninstall: async () => {}, setDir: async (id, d) => { const m = { ...(settings.appDirs || {}) }; if (d) m[id] = d; else delete m[id]; settings.appDirs = m; return settings; }, launch: async () => ({ ok: true }), openFolder() {}, openExternal() {}, onProgress() {},
     self: { _u: { repo: 'hugolindo12/HelioStore', status: 'idle', current: '2.0.0', version: '', percent: 0, error: '' }, _cb: null, get: async function () { return this._u; }, check: async function () { this._u = { status: 'available', current: '2.0.0', version: '2.1.0', percent: 0, error: '' }; return this._u; }, install: async function () { window.__selfInstalled = true; }, onChanged: function (cb) { window.__selfCb = cb; } },
     diag: async () => 'Helio Store v2.0.2 (instalada)\nEletron 44\n--- últimos eventos ---\n(sem eventos)',
     github: {

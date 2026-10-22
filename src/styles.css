@@ -555,3 +555,5 @@ html[data-theme="light"] .chk.c-ok i { color: #1a9a3c; } html[data-theme="light"
 #view-library.compact .row-info p,#view-library.compact .row-info .row-note{display:none}
 #view-library.compact .app-icon{--s:30px !important}
 #lib-compact.on{background:var(--accent,#7b3dff);color:#fff}
+.d-dir{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;font-size:13px}
+.d-dir span{opacity:.7}.d-dir b{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
